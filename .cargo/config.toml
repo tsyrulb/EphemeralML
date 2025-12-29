@@ -1,0 +1,9 @@
+[env]
+# Environment variables for mock mode
+EPHEMERAL_MOCK_MODE = "true"
+EPHEMERAL_CLIENT_PORT = "8080"
+EPHEMERAL_HOST_PORT = "8081" 
+EPHEMERAL_ENCLAVE_PORT = "8082"
+
+# Logging configuration
+RUST_LOG = "info"

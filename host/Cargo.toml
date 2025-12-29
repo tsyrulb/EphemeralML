@@ -1,0 +1,25 @@
+[package]
+name = "ephemeral-ml-host"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Workspace dependencies
+ephemeral-ml-common = { path = "../common" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+
+# Host-specific dependencies
+tokio-vsock = { version = "0.4", optional = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+
+[features]
+default = ["mock"]
+mock = []
+production = ["tokio-vsock"]
