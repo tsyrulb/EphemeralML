@@ -25,37 +25,75 @@ EphemeralML is a revolutionary zero-trust AI inference system that solves the cr
 graph TB
     subgraph "Client Environment"
         C[Client]
-        C --> |Model Topology| CT[Topology Keys]
+        TD[Topology Decomposer]
+        SC[Secure Channel]
+        C --> TD
+        C --> SC
     end
     
     subgraph "Host Environment"
         H[Host Proxy]
-        S[Weight Storage]
-        H --> S
+        WS[Weight Storage]
+        H --> WS
     end
     
-    subgraph "AWS Nitro Enclave"
-        E[Enclave]
-        A[Assembly Engine]
-        I[Inference Engine]
-        E --> A
-        A --> I
+    subgraph "🛡️ AWS Nitro Enclave"
+        E[Enclave Server]
+        AA[Attestation Agent]
+        MA[Model Assembler]
+        IE[Inference Engine]
+        E --> AA
+        E --> MA
+        MA --> IE
     end
     
-    C -.->|Encrypted Channel| H
-    H -.->|VSock/Secure| E
-    C -.->|Direct Attestation| E
+    %% Data flows
+    TD -.->|Encrypted Topology| SC
+    SC -.->|Attested Channel| E
+    C -.->|Model Weights| H
+    H -.->|VSock/Secure| WS
+    WS -.->|Weight Arrays| MA
+    
+    %% Attestation flow
+    C <-.->|🔐 Attestation Verification| AA
+    
+    %% Inference flow
+    C -.->|Inference Request| E
+    IE -.->|Encrypted Results| C
+    
+    %% Ephemeral assembly (shown with dashed box)
+    MA -.->|Ephemeral Model| IE
+    IE -.->|Destroy After Use| MA
     
     style E fill:#ff6b6b
     style C fill:#4ecdc4
     style H fill:#45b7d1
+    style MA fill:#ffd93d
+    style IE fill:#6bcf7f
 ```
 
 ### Components
 
-- **🖥️ Client**: Handles model decomposition and maintains topology keys
-- **🌐 Host**: Unprivileged proxy for weight storage and communication forwarding  
+- **🖥️ Client**: Decomposes models into topology keys and coordinates secure inference
+  - **Topology Decomposer**: Extracts computation graph structure without weights
+  - **Secure Channel**: Manages encrypted communication and attestation verification
+- **🌐 Host**: Stores unstructured weights and proxies communication (zero knowledge of topology)
+  - **Weight Storage**: Secure storage for unstructured weight arrays
+  - **Proxy Layer**: VSock/TCP forwarding between client and enclave
 - **🔒 Enclave**: Hardware-isolated environment for secure model assembly and inference
+  - **Attestation Agent**: Provides cryptographic proof of execution environment
+  - **Model Assembler**: Ephemerally reconstructs models from topology + weights
+  - **Inference Engine**: Executes inference and immediately destroys assembled models
+
+### Zero-Trust Data Flow
+
+1. **🔄 Model Decomposition**: Client splits model into topology (kept) + weights (sent to host)
+2. **🔐 Attestation**: Client verifies enclave authenticity via hardware attestation
+3. **📡 Secure Request**: Client sends encrypted topology + inference data to enclave
+4. **⚡ Ephemeral Assembly**: Enclave retrieves weights from host and assembles model (milliseconds)
+5. **🧠 Inference**: Model executes inference within secure enclave
+6. **🗑️ Destruction**: Model immediately destroyed, only encrypted results returned
+7. **📤 Response**: Client receives encrypted inference results
 
 ## 🚀 Quick Start
 
