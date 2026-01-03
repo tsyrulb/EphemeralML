@@ -3,247 +3,307 @@
 [![Language](https://img.shields.io/badge/Written%20in-Rust-b7410e?style=for-the-badge&logo=rust)]()
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)]()
 
-# 🔒 EphemeralML: Zero-Trust AI Inference
+# 🔒 EphemeralML: Confidential Inference with Defense-in-Depth
 
-> **Protect your AI models while enabling secure inference**
+> **Attested. Encrypted end-to-end. Evidence-producing.**  
+> EphemeralML is a **confidential inference control plane** for protecting **model weights and sensitive inputs** in hostile or multi-tenant environments.
 
-EphemeralML is a revolutionary zero-trust AI inference system that solves the critical problem of intellectual property protection in AI deployments. By separating neural network weights from topology information and using hardware-based isolation, your models remain secure even in untrusted environments.
+EphemeralML is built around a two-layer security strategy:
+
+- **Layer 1 — Paranoid Gateway (Core Product):**  
+  **TEE isolation + attestation-gated key release + end-to-end encrypted sessions** where the **host is a ciphertext-only relay**.
+- **Layer 2 — Shield Mode (LRCI / Moat):**  
+  **Leakage-resilient inference**: optional obfuscation to make captured weights **not directly usable** under defined partial-compromise attacker models.
+
+> ⚠️ EphemeralML does not claim "perfect security." It provides **explicit guarantees under explicit assumptions**, with documented limitations and misuse cases.
+
+---
 
 ## 🎯 Why EphemeralML?
 
-**The Problem**: Traditional AI inference exposes complete models to the execution environment, creating IP theft risks and limiting deployment options in multi-tenant or cloud scenarios.
+### The Problem
+Traditional inference deployments expose valuable assets to execution environments:
+- **Model IP exposure:** weights are present where admins/operators/host compromise may access them
+- **Sensitive prompt/data exposure:** inputs may be visible to the host stack
+- **No audit-grade evidence:** teams cannot prove which code actually processed sensitive inference
 
-**Our Solution**: 
-- 🔐 **Model Decomposition**: Split models into unstructured weights (stored remotely) and topology keys (kept by client)
-- ⚡ **Ephemeral Assembly**: Functional models exist only during inference execution (milliseconds)
-- 🛡️ **Hardware Isolation**: AWS Nitro Enclaves provide cryptographically verifiable security
-- 🚫 **Zero Trust**: No component has access to complete model information
+### Our Approach
+EphemeralML productizes a **defense-in-depth** confidential inference architecture:
 
-## 🏗️ Architecture
+- 🔐 **Attestation-Bound Secure Sessions**  
+  The client verifies a TEE measurement and establishes an **end-to-end encrypted session** bound to the enclave's cryptographic identity.
+- 🔑 **Attestation-Gated Key Release**  
+  Decryption keys for weights/data are released only to **approved enclave measurements**.
+- 🧾 **Attested Execution Receipts (AERs)**  
+  Every inference can emit an evidence artifact (measurement/build id, policy id, request hash, timestamp, nonce).
+- 🛡️ **Shield Mode (Optional Premium Tier)**  
+  Structured weight obfuscation to reduce direct usability of captured weights in partial boundary failures.
+
+---
+
+## 🏗️ Architecture (Host = Blind Relay, TEE = Trust Domain)
 
 ```mermaid
 graph TB
-    subgraph "Client Environment"
+    subgraph "Client (Verifier)"
         C[Client]
-        TD[Topology Decomposer]
-        SC[Secure Channel]
-        C --> TD
-        C --> SC
+        V[Attestation Verifier]
+        S[E2E Session (Noise/HPKE-like)]
+        C --> V --> S
     end
     
-    subgraph "Host Environment"
-        H[Host Proxy]
-        WS[Weight Storage]
-        H --> WS
+    subgraph "Untrusted Host (Relay/Orchestrator)"
+        H[Host Relay]
+        P[VSock Proxy / Transport]
+        K[AWS API Access (KMS/S3)]
+        H --> P
+        H --> K
     end
     
-    subgraph "🛡️ AWS Nitro Enclave"
-        E[Enclave Server]
-        AA[Attestation Agent]
-        MA[Model Assembler]
-        IE[Inference Engine]
-        E --> AA
-        E --> MA
-        MA --> IE
+    subgraph "Trusted Domain (AWS Nitro Enclave)"
+        E[Enclave Runtime]
+        A[Attestation Doc Generator]
+        D[Decrypt & Policy Gate]
+        M[Model Loader/Runtime]
+        R[AER Receipt Generator]
+        E --> A
+        E --> D --> M --> R
     end
-    
-    %% Data flows
-    TD -.->|Encrypted Topology| SC
-    SC -.->|Attested Channel| E
-    C -.->|Model Weights| H
-    H -.->|VSock/Secure| WS
-    WS -.->|Weight Arrays| MA
-    
-    %% Attestation flow
-    C <-.->|🔐 Attestation Verification| AA
-    
-    %% Inference flow
-    C -.->|Inference Request| E
-    IE -.->|Encrypted Results| C
-    
-    %% Ephemeral assembly (shown with dashed box)
-    MA -.->|Ephemeral Model| IE
-    IE -.->|Destroy After Use| MA
-    
+
+    %% Flow
+    C -.->|1) Attestation Challenge| A
+    A -.->|2) Attestation Doc| V
+    S -.->|3) Ciphertext-only payload| P
+    P -.->|4) VSock| E
+    K -.->|5) Encrypted weights & wrapped keys| H
+    H -.->|6) Stream ciphertext| P
+    R -.->|7) Receipt (hashes, measurements)| C
+
     style E fill:#ff6b6b
     style C fill:#4ecdc4
     style H fill:#45b7d1
-    style MA fill:#ffd93d
-    style IE fill:#6bcf7f
 ```
 
-### Components
+### Component Roles
 
-- **🖥️ Client**: Decomposes models into topology keys and coordinates secure inference
-  - **Topology Decomposer**: Extracts computation graph structure without weights
-  - **Secure Channel**: Manages encrypted communication and attestation verification
-- **🌐 Host**: Stores unstructured weights and proxies communication (zero knowledge of topology)
-  - **Weight Storage**: Secure storage for unstructured weight arrays
-  - **Proxy Layer**: VSock/TCP forwarding between client and enclave
-- **🔒 Enclave**: Hardware-isolated environment for secure model assembly and inference
-  - **Attestation Agent**: Provides cryptographic proof of execution environment
-  - **Model Assembler**: Ephemerally reconstructs models from topology + weights
-  - **Inference Engine**: Executes inference and immediately destroys assembled models
+* **Client (Verifier):**
 
-### Zero-Trust Data Flow
+  * verifies attestation + allowlist
+  * establishes an attestation-bound secure session
+  * encrypts sensitive payloads end-to-end
+  * verifies AER receipts
 
-1. **🔄 Model Decomposition**: Client splits model into topology (kept) + weights (sent to host)
-2. **🔐 Attestation**: Client verifies enclave authenticity via hardware attestation
-3. **📡 Secure Request**: Client sends encrypted topology + inference data to enclave
-4. **⚡ Ephemeral Assembly**: Enclave retrieves weights from host and assembles model (milliseconds)
-5. **🧠 Inference**: Model executes inference within secure enclave
-6. **🗑️ Destruction**: Model immediately destroyed, only encrypted results returned
-7. **📤 Response**: Client receives encrypted inference results
+* **Host (Untrusted Relay):**
+
+  * networking + storage I/O + AWS API calls
+  * **must never see plaintext** model weights or prompts
+  * can DoS (availability is not guaranteed)
+
+* **Enclave (Trusted Compute):**
+
+  * holds plaintext secrets only within the trusted boundary
+  * enforces policy for key release
+  * runs inference and emits receipts
+
+---
+
+## 🔥 What's New vs "TEE wrapper" Projects
+
+✅ **Host is a ciphertext-only blind relay** (not "semi-trusted").
+✅ **Key release is gated by attestation policy** (measurement allowlist).
+✅ **Evidence is first-class** (AER receipts per inference).
+✅ **Shield Mode** adds defense-in-depth when hardware boundaries degrade.
+
+---
+
+## 🛡️ Security Model (Concise)
+
+### Threat Model (v1)
+
+**In scope:**
+
+* malicious/curious host OS and administrators
+* tampering with deployment artifacts (blocked via attestation allowlists)
+* replay attempts (blocked via freshness challenges)
+* partial boundary failures where memory scraping becomes feasible (Shield Mode target)
+
+**Out of scope (v1):**
+
+* black-box distillation via repeated queries (handled via rate limits, monitoring, watermarking)
+
+### Guarantees (v1)
+
+* **G1:** Host cannot read user payload plaintext (E2E session)
+* **G2:** Host cannot read model weights plaintext (attestation-gated key release)
+* **G4/G5:** Client can verify code identity before releasing secrets
+* **G6:** Each inference can produce an Attested Execution Receipt (AER)
+
+### Shield Mode (LRCI) guarantee (v1)
+
+* **G7 (defined attacker model):** Captured weights are **not directly usable** without session secrets / masking factors.
+
+> Full threat model, assumptions, limitations, and misuse cases live in `appendix/`.
+
+---
 
 ## 🚀 Quick Start
 
-### Development Mode (No AWS Required)
+### Implementation Status
 
-Perfect for local development and testing:
+**Current Status:** ✅ **Specification Complete** - Ready for implementation
+
+The system is fully specified with:
+- 14 comprehensive requirements with acceptance criteria
+- Complete architecture design with Layer 1 (Gateway) + Layer 2 (Shield Mode)
+- 18-task implementation plan with 29 property tests
+- AWS Nitro Enclaves integration approach
+
+### Begin Implementation
+
+To start building the system:
 
 ```bash
-# Clone the repository
-git clone https://github.com/YOUR_USERNAME/ephemeral-ml
-cd ephemeral-ml
+# 1. Review the complete specification
+ls .kiro/specs/confidential-inference-gateway/
+# requirements.md - 14 detailed requirements
+# design.md - complete architecture 
+# tasks.md - 18-task implementation plan
 
-# Build all components
+# 2. Start with Task 1: Set up project structure
+# Open .kiro/specs/confidential-inference-gateway/tasks.md
+# Click "Start task" next to Task 1
+```
+
+### Future: Development Mode (Post-Implementation)
+
+Once implemented, local development with mock transport:
+
+```bash
 cargo build
 
-# Terminal 1: Start mock enclave
+# Terminal 1: mock enclave
 cd enclave && cargo run
 
-# Terminal 2: Start host proxy  
+# Terminal 2: host relay  
 cd host && cargo run
 
-# Terminal 3: Run client
+# Terminal 3: client
 cd client && cargo run
 ```
 
-### Production Mode (AWS Nitro Enclaves)
+### Future: Production Mode (Post-Implementation)
 
-For production deployment with hardware security:
-
-```bash
-# Build for production
-cargo build --features production --no-default-features
-
-# Deploy to AWS EC2 with Nitro Enclaves support
-# (See deployment guide for detailed instructions)
-```
-
-## 🧪 Testing
+Once implemented, deploy on AWS Nitro Enclaves:
 
 ```bash
-# Run all tests
-cargo test
+# Build production artifacts
+cargo build --release --features production --no-default-features
 
-# Run with mock features
-cargo test --features mock
-
-# Run property-based tests (recommended)
-cargo test --features mock -- --test-threads=1
+# Deploy EIF on Nitro-capable EC2 instance
+# See implementation tasks 17.1-17.2 for deployment details
 ```
+
+---
 
 ## 📁 Project Structure
 
 ```
-ephemeral-ml/
-├── 📦 client/           # Model decomposition & secure communication
-│   ├── src/decomposer.rs    # ONNX model decomposition
-│   ├── src/secure_client.rs # Encrypted client-enclave communication
-│   └── src/types.rs         # Client-specific data structures
-├── 🌐 host/             # Weight storage & communication proxy
-│   ├── src/proxy.rs         # VSock/TCP proxy implementation
-│   └── src/storage.rs       # Secure weight storage
-├── 🔒 enclave/          # Hardware-isolated inference execution
-│   ├── src/assembly.rs      # Ephemeral model assembly
-│   ├── src/inference.rs     # Secure inference execution
-│   └── src/attestation.rs   # Hardware attestation
-├── 📚 common/           # Shared types and utilities
-└── 🧪 tests/            # Integration tests
+EphemeralML/
+├── .kiro/specs/confidential-inference-gateway/
+│   ├── requirements.md     # 14 comprehensive requirements with acceptance criteria
+│   ├── design.md          # complete architecture design (Layer 1 + Layer 2)
+│   └── tasks.md           # 18-task implementation plan with property tests
+├── appendix/
+│   ├── AppendixA.md       # explicit assumptions (A1-A26)
+│   ├── AppendixB.md       # assumption-to-guarantee mapping
+│   └── AppendixC.md       # misuse cases (MC-01 to MC-15)
+├── client/                # [TO BE IMPLEMENTED] verifier + E2E encryption + protocol
+├── host/                  # [TO BE IMPLEMENTED] untrusted relay + vsock proxy + AWS I/O
+├── enclave/               # [TO BE IMPLEMENTED] trusted runtime (attestation, decrypt, inference)
+├── common/                # [TO BE IMPLEMENTED] shared protocol/types
+└── tests/                 # [TO BE IMPLEMENTED] integration and property tests
 ```
 
-## 🔧 Configuration
+---
 
-### Environment Variables
+## 🧪 Testing
 
+**Implementation Status:** Specification includes comprehensive testing strategy
+
+The implementation plan includes:
+- **29 Property Tests** for security-critical components
+- **Unit Tests** for specific examples and edge cases  
+- **Integration Tests** for end-to-end workflows
+- **Performance Benchmarks** for v1 model scope
+
+Once implemented:
 ```bash
-# Mock mode settings (default)
-EPHEMERAL_MOCK_MODE=true
-EPHEMERAL_CLIENT_PORT=8080
-EPHEMERAL_HOST_PORT=8081
-EPHEMERAL_ENCLAVE_PORT=8082
-
-# Logging
-RUST_LOG=info
+cargo test                    # Run all tests
+cargo test --features mock    # Run with mock attestation
+cargo test --features production  # Run with real Nitro attestation
 ```
 
-### Feature Flags
+---
 
-- `mock` (default): Local development with TCP communication
-- `production`: AWS Nitro Enclaves with VSock and real attestation
+## 🔧 Feature Flags
 
-## 🛡️ Security Model
+* `mock` (default): Local dev with TCP + mock attestation
+* `production`: VSock + real attestation flows for Nitro Enclaves
+* `shield_mode` (planned): Enables LRCI primitives and benchmarks
 
-### Threat Model
-
-✅ **Protected Against**:
-- Model theft from compromised hosts
-- Inference data interception
-- Topology reverse engineering
-- Weight extraction attacks
-
-⚠️ **Assumptions**:
-- Client environment is trusted
-- AWS Nitro Enclaves provide hardware isolation
-- Network communication can be monitored (but encrypted)
-
-### Security Guarantees
-
-1. **🔐 Model Confidentiality**: Complete models never exist outside secure enclaves
-2. **🛡️ Hardware Attestation**: Cryptographic proof of execution environment
-3. **⚡ Ephemeral Assembly**: Models exist only during inference (milliseconds)
-4. **🔒 Encrypted Communication**: All data in transit is encrypted and authenticated
-
-## 🚧 Development Status
-
-This project is in active development. Current status:
-
-- ✅ **Architecture Design**: Complete zero-trust system design
-- ✅ **Mock Implementation**: Local development environment ready
-- 🚧 **Core Features**: Model decomposition, secure assembly, inference engine
-- 📋 **Planned**: ONNX support, production deployment, performance optimization
-
-See our internal development roadmap for detailed implementation status.
-
-## 🤝 Community & Feedback
-
-We are currently in an active **R&D phase**. While we are not accepting external code contributions to the core enclave logic at this time (to maintain security audit chains), we welcome community feedback:
-
-- 🐛 **Found a bug?** Please open an [Issue](https://github.com/YOUR_USERNAME/ephemeral-ml/issues).
-- 💡 **Have a feature request?** Start a discussion in the Issues tab.
-- 🔐 **Security Vulnerabilities:** Please do not open public issues for security flaws. Email security@cyntrisec.com directly.
+---
 
 ## 📚 Documentation
 
-- 📖 [Quick Start Guide](QUICKSTART.md) - Get up and running in minutes
+### Specification (Complete)
+* `.kiro/specs/confidential-inference-gateway/requirements.md` — 14 comprehensive requirements with acceptance criteria
+* `.kiro/specs/confidential-inference-gateway/design.md` — complete architecture design with Layer 1 + Layer 2 security
+* `.kiro/specs/confidential-inference-gateway/tasks.md` — 18-task implementation plan with 29 property tests
 
-## 🔗 Related Projects
+### Security Analysis (Complete)
+* `appendix/AppendixA.md` — explicit assumptions (A1-A26: what must be true for guarantees to hold)
+* `appendix/AppendixB.md` — assumption-to-guarantee mapping (what breaks what)
+* `appendix/AppendixC.md` — misuse cases (MC-01 to MC-15: common wrong deployments and why they fail)
 
-- [AWS Nitro Enclaves](https://aws.amazon.com/ec2/nitro/nitro-enclaves/) - Hardware isolation platform
-- [Candle](https://github.com/huggingface/candle) - Rust ML framework (planned integration)
-- [ONNX](https://onnx.ai/) - Open neural network exchange format
+### Research Context
+* `appendix/scientific-grounding.md` — related work and research papers
+* `appendix/open-source-shortlist.md` — relevant open source projects
+
+---
+
+## 🔗 Related Work & Inspiration
+
+EphemeralML is informed by confidential inference system designs and model-protection research.
+See `appendix/scientific-grounding.md` for a curated list of papers (LoRO, TEESlice, NNSplitter, Slalom, Glamdring, etc.).
+
+---
+
+## 🤝 Community & Feedback
+
+**Current Phase:** **Specification Complete** - Ready for implementation
+
+We welcome feedback on the specification and implementation approach:
+
+* 📋 **Specification Review**: Review `.kiro/specs/confidential-inference-gateway/` for technical feedback
+* 🐛 **Implementation Issues**: Open issues as implementation progresses  
+* 🔐 **Security Analysis**: Review `appendix/` for security model feedback
+* 📧 **Private Security Reports**: [security@cyntrisec.com](mailto:security@cyntrisec.com)
+
+**Next Steps:**
+1. Begin implementation with Task 1 in `tasks.md`
+2. Follow the 18-task incremental plan
+3. Implement 29 property tests for security validation
+
+---
 
 ## 📄 License
 
-This project is part of the EphemeralML research initiative.
+MIT. See `LICENSE`.
 
 ---
 
 <div align="center">
 
-**🔒 Secure AI • ⚡ Fast Inference • 🛡️ Zero Trust**
-
-[Get Started](#-quick-start) • [Documentation](#-documentation) • [Community](#-community--feedback)
+**🔒 Attested Execution • 🧾 Evidence Receipts • 🛡️ Defense-in-Depth Confidential AI**
 
 </div>
