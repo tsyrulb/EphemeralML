@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>EphemeralML - Zero-Trust AI Inference | CyntriSec</title>
+    <title>EphemeralML - Confidential Inference Gateway | Specification Complete</title>
     
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
@@ -12,13 +12,13 @@
     <meta name="theme-color" content="#00ffff" />
     
     <!-- Open Graph / Social Media -->
-    <meta property="og:title" content="EphemeralML - Zero-Trust AI Inference" />
-    <meta property="og:description" content="Revolutionary AI inference system using AWS Nitro Enclaves for hardware-isolated, ephemeral model execution" />
+    <meta property="og:title" content="EphemeralML - Confidential Inference Gateway" />
+    <meta property="og:description" content="Defense-in-depth confidential inference system with attestation-gated key release, HPKE encrypted sessions, and attested execution receipts" />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="favicon.svg" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="EphemeralML - Zero-Trust AI Inference" />
-    <meta name="twitter:description" content="Revolutionary AI inference system using AWS Nitro Enclaves for hardware-isolated, ephemeral model execution" />
+    <meta name="twitter:title" content="EphemeralML - Confidential Inference Gateway" />
+    <meta name="twitter:description" content="Defense-in-depth confidential inference system with attestation-gated key release, HPKE encrypted sessions, and attested execution receipts" />
     
     <style>
       @import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap");
@@ -474,11 +474,11 @@
       <nav>
         <div class="logo-section">
           <div class="logo">EphemeralML</div>
-          <div class="company-badge">by CyntriSec</div>
+          <div class="company-badge">Specification Complete</div>
         </div>
         <ul class="nav-links">
-          <li><a href="#features">Features</a></li>
-          <li><a href="#tech">Technology</a></li>
+          <li><a href="#security">Security</a></li>
+          <li><a href="#pilot">Request Pilot</a></li>
           <li><a href="#contact">Contact</a></li>
         </ul>
       </nav>
@@ -488,145 +488,439 @@
       <div class="hero-content">
         <h1 class="glitch" data-text="EphemeralML">EphemeralML</h1>
         <p class="subtitle">
-          Zero-Trust AI Inference • Hardware-Isolated • Ephemeral Assembly
+          High-assurance confidential inference with verifiable execution receipts
         </p>
         <p
           style="
-            max-width: 600px;
-            margin: 0 auto 1rem;
-            color: var(--text-secondary);
-          "
-        >
-          Revolutionary AI inference system that protects intellectual property
-          by separating neural network weights from topology, using AWS Nitro
-          Enclaves for millisecond-duration secure execution.
-        </p>
-        <p
-          style="
-            color: var(--neon-pink);
-            font-family: 'Orbitron', monospace;
+            max-width: 700px;
+            margin: 0 auto 1.5rem;
+            color: var(--text-primary);
             font-size: 1.1rem;
-            margin-bottom: 2rem;
+            line-height: 1.5;
           "
         >
-          Developed by CyntriSec • ephemeralml.cyntrisec.com
+          Run sensitive AI inference where model weights and prompts stay protected, even if the host is compromised. Built on AWS Nitro Enclaves: attestation-gated key release + end-to-end encrypted sessions + audit receipts.
         </p>
-        <a href="#features" class="cta-button">Explore Technology</a>
+        <div style="display: flex; gap: 1rem; justify-content: center; margin-bottom: 1.5rem; flex-wrap: wrap;">
+          <a href="#pilot" class="cta-button">Request a Pilot</a>
+          <a href="#security" class="cta-button" style="border-color: var(--neon-pink); color: var(--neon-pink);">Read Security Model</a>
+        </div>
+        <p
+          style="
+            color: var(--neon-green);
+            font-family: 'Orbitron', monospace;
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+          "
+        >
+          Designed for regulated and high-assurance environments<br>
+          (government clouds, defense contractors, critical infrastructure)
+        </p>
       </div>
     </section>
 
-    <section class="features" id="features">
-      <h2 class="section-title">Core Innovations</h2>
+    <!-- Problem Section -->
+    <section class="features" style="background: var(--darker-bg); padding: 3rem 2rem;">
+      <div style="max-width: 1000px; margin: 0 auto;">
+        <h2 class="section-title" style="color: var(--neon-pink);">The Problem</h2>
+        <p style="text-align: center; font-size: 1.2rem; margin-bottom: 2rem; color: var(--text-primary);">
+          Most "secure inference" systems still leave critical gaps:
+        </p>
+        <div class="features-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+          <div class="feature-card" style="border-color: var(--neon-pink);">
+            <div class="feature-icon">🔓</div>
+            <h3>Host Exposure</h3>
+            <p>The host can often see plaintext prompts or decrypted weights at some point in the pipeline</p>
+          </div>
+          <div class="feature-card" style="border-color: var(--neon-pink);">
+            <div class="feature-icon">🚫</div>
+            <h3>Transit ≠ Protection</h3>
+            <p>"Encryption in transit" doesn't prevent data exposure on compromised hosts</p>
+          </div>
+          <div class="feature-card" style="border-color: var(--neon-pink);">
+            <div class="feature-icon">📋</div>
+            <h3>No Proof</h3>
+            <p>Compliance teams need proof of what code processed an inference — not just logs</p>
+          </div>
+          <div class="feature-card" style="border-color: var(--neon-pink);">
+            <div class="feature-icon">🔑</div>
+            <h3>Circular Trust</h3>
+            <p>Key management is frequently enforced by the same environment you don't trust</p>
+          </div>
+        </div>
+        <p style="text-align: center; font-size: 1.1rem; margin-top: 2rem; color: var(--neon-cyan); font-family: 'Orbitron', monospace;">
+          EphemeralML is built for the scenario that matters in high-assurance:<br>
+          <strong>assume the host is compromised — and still keep secrets protected.</strong>
+        </p>
+      </div>
+    </section>
+
+    <!-- What EphemeralML Is -->
+    <section class="features" style="padding: 3rem 2rem;">
+      <div style="max-width: 800px; margin: 0 auto; text-align: center;">
+        <h2 class="section-title">What EphemeralML Is</h2>
+        <p style="font-size: 1.2rem; margin-bottom: 2rem; color: var(--text-primary);">
+          EphemeralML is a <strong style="color: var(--neon-cyan);">Confidential Inference Gateway</strong> that protects:
+        </p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+          <div style="background: rgba(0, 255, 255, 0.1); padding: 1.5rem; border-radius: 10px; border: 1px solid var(--neon-cyan);">
+            <h4 style="color: var(--neon-cyan); margin-bottom: 0.5rem;">Model weights (IP)</h4>
+          </div>
+          <div style="background: rgba(0, 255, 65, 0.1); padding: 1.5rem; border-radius: 10px; border: 1px solid var(--neon-green);">
+            <h4 style="color: var(--neon-green); margin-bottom: 0.5rem;">User inputs/outputs (PII / classified)</h4>
+          </div>
+          <div style="background: rgba(255, 0, 128, 0.1); padding: 1.5rem; border-radius: 10px; border: 1px solid var(--neon-pink);">
+            <h4 style="color: var(--neon-pink); margin-bottom: 0.5rem;">Execution integrity (verified code)</h4>
+          </div>
+        </div>
+        <p style="font-size: 1.1rem; color: var(--text-secondary);">
+          It does this with a two-part foundation:<br>
+          <strong style="color: var(--neon-cyan);">TEE isolation</strong> (Nitro Enclave) for trusted operations<br>
+          <strong style="color: var(--neon-green);">Attestation-bound cryptography</strong> so secrets are released only to approved enclave measurements
+        </p>
+      </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="features" style="background: var(--darker-bg); padding: 3rem 2rem;">
+      <div style="max-width: 1000px; margin: 0 auto;">
+        <h2 class="section-title">How It Works (3 Steps)</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+          <div class="feature-card" style="border-color: var(--neon-cyan); text-align: center;">
+            <div style="font-size: 3rem; color: var(--neon-cyan); margin-bottom: 1rem;">1</div>
+            <h3 style="color: var(--neon-cyan);">Verify the enclave (Attestation)</h3>
+            <p>The client verifies the enclave identity + code measurement against an allowlist.</p>
+          </div>
+          <div class="feature-card" style="border-color: var(--neon-green); text-align: center;">
+            <div style="font-size: 3rem; color: var(--neon-green); margin-bottom: 1rem;">2</div>
+            <h3 style="color: var(--neon-green);">Establish encrypted session (HPKE)</h3>
+            <p>All requests and responses are encrypted to the enclave. The host forwards ciphertext only.</p>
+          </div>
+          <div class="feature-card" style="border-color: var(--neon-pink); text-align: center;">
+            <div style="font-size: 3rem; color: var(--neon-pink); margin-bottom: 1rem;">3</div>
+            <h3 style="color: var(--neon-pink);">Load models with gated keys (KMS)</h3>
+            <p>Model keys are released only when KMS confirms the enclave measurement matches policy. The host never sees plaintext keys.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="features" id="security">
+      <h2 class="section-title">Security Guarantees (v1)</h2>
+      <div style="max-width: 1000px; margin: 0 auto;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; margin-bottom: 3rem;">
+          <div>
+            <h3 style="color: var(--neon-green); font-family: 'Orbitron', monospace; margin-bottom: 1rem;">We guarantee:</h3>
+            <ul style="list-style: none; padding: 0;">
+              <li style="margin-bottom: 0.8rem; padding-left: 1.5rem; position: relative;">
+                <span style="position: absolute; left: 0; color: var(--neon-green);">✓</span>
+                <strong>Host blindness:</strong> the host can relay traffic but cannot decrypt prompts, outputs, or model keys
+              </li>
+              <li style="margin-bottom: 0.8rem; padding-left: 1.5rem; position: relative;">
+                <span style="position: absolute; left: 0; color: var(--neon-green);">✓</span>
+                <strong>Attestation-gated key release:</strong> model DEKs are released only to approved enclave measurements
+              </li>
+              <li style="margin-bottom: 0.8rem; padding-left: 1.5rem; position: relative;">
+                <span style="position: absolute; left: 0; color: var(--neon-green);">✓</span>
+                <strong>Session binding:</strong> encryption keys are bound to attestation + nonce to prevent key swapping
+              </li>
+              <li style="margin-bottom: 0.8rem; padding-left: 1.5rem; position: relative;">
+                <span style="position: absolute; left: 0; color: var(--neon-green);">✓</span>
+                <strong>Anti-swap model integrity:</strong> signed model manifests prevent serving a different model blob
+              </li>
+              <li style="margin-bottom: 0.8rem; padding-left: 1.5rem; position: relative;">
+                <span style="position: absolute; left: 0; color: var(--neon-green);">✓</span>
+                <strong>Auditability:</strong> each inference produces an Attested Execution Receipt (AER) clients can verify
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h3 style="color: var(--neon-pink); font-family: 'Orbitron', monospace; margin-bottom: 1rem;">We explicitly do not claim (v1):</h3>
+            <ul style="list-style: none; padding: 0;">
+              <li style="margin-bottom: 0.8rem; padding-left: 1.5rem; position: relative;">
+                <span style="position: absolute; left: 0; color: var(--neon-pink);">×</span>
+                protection against all microarchitectural side-channels
+              </li>
+              <li style="margin-bottom: 0.8rem; padding-left: 1.5rem; position: relative;">
+                <span style="position: absolute; left: 0; color: var(--neon-pink);">×</span>
+                availability guarantees (the host can DoS)
+              </li>
+              <li style="margin-bottom: 0.8rem; padding-left: 1.5rem; position: relative;">
+                <span style="position: absolute; left: 0; color: var(--neon-pink);">×</span>
+                "confidentiality under full enclave compromise"
+              </li>
+              <li style="margin-bottom: 0.8rem; padding-left: 1.5rem; position: relative;">
+                <span style="position: absolute; left: 0; color: var(--neon-pink);">×</span>
+                multi-cloud / confidential GPU support
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Who It's For -->
+    <section class="features" style="background: var(--darker-bg); padding: 3rem 2rem;">
+      <div style="max-width: 1000px; margin: 0 auto;">
+        <h2 class="section-title">Who It's For</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 3rem;">
+          <div>
+            <h3 style="color: var(--neon-cyan); font-family: 'Orbitron', monospace; margin-bottom: 1rem;">Buyers / Owners</h3>
+            <ul style="list-style: none; padding: 0;">
+              <li style="margin-bottom: 0.8rem; padding-left: 1.5rem; position: relative;">
+                <span style="position: absolute; left: 0; color: var(--neon-cyan);">•</span>
+                Government cloud platform teams (high-assurance)
+              </li>
+              <li style="margin-bottom: 0.8rem; padding-left: 1.5rem; position: relative;">
+                <span style="position: absolute; left: 0; color: var(--neon-cyan);">•</span>
+                Defense contractors running sensitive analytics
+              </li>
+              <li style="margin-bottom: 0.8rem; padding-left: 1.5rem; position: relative;">
+                <span style="position: absolute; left: 0; color: var(--neon-cyan);">•</span>
+                Regulated enterprises (finance, health) protecting proprietary models and PII
+              </li>
+              <li style="margin-bottom: 0.8rem; padding-left: 1.5rem; position: relative;">
+                <span style="position: absolute; left: 0; color: var(--neon-cyan);">•</span>
+                ML platform teams needing auditable, verifiable inference execution
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h3 style="color: var(--neon-green); font-family: 'Orbitron', monospace; margin-bottom: 1rem;">Users</h3>
+            <ul style="list-style: none; padding: 0;">
+              <li style="margin-bottom: 0.8rem; padding-left: 1.5rem; position: relative;">
+                <span style="position: absolute; left: 0; color: var(--neon-green);">•</span>
+                ML engineers deploying protected inference endpoints
+              </li>
+              <li style="margin-bottom: 0.8rem; padding-left: 1.5rem; position: relative;">
+                <span style="position: absolute; left: 0; color: var(--neon-green);">•</span>
+                Security teams enforcing key release policy + allowlists
+              </li>
+              <li style="margin-bottom: 0.8rem; padding-left: 1.5rem; position: relative;">
+                <span style="position: absolute; left: 0; color: var(--neon-green);">•</span>
+                Compliance teams verifying AER receipts for audits and investigations
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Use Cases -->
+    <section class="features">
+      <h2 class="section-title">Use Cases</h2>
       <div class="features-grid">
         <div class="feature-card">
           <div class="feature-icon">🔒</div>
-          <h3>Zero-Trust Architecture</h3>
-          <p>
-            Neural networks decomposed into unstructured weights (host-stored)
-            and topology keys (client-held). Functional models exist only during
-            inference execution.
-          </p>
-        </div>
-
-        <div class="feature-card">
-          <div class="feature-icon">⚡</div>
-          <h3>Ephemeral Assembly</h3>
-          <p>
-            Models assembled and executed within milliseconds inside
-            hardware-isolated enclaves, then immediately destroyed. No
-            persistent model state.
-          </p>
+          <h3>Protected Model Serving (IP Protection)</h3>
+          <p>Keep model weights encrypted at rest and decrypted only inside an attested enclave.</p>
         </div>
 
         <div class="feature-card">
           <div class="feature-icon">🛡️</div>
-          <h3>Hardware Isolation</h3>
-          <p>
-            AWS Nitro Enclaves provide cryptographic attestation and
-            hardware-based isolation guarantees. Untrusted host cannot access
-            model topology.
-          </p>
+          <h3>Sensitive Inference (PII / Regulated Workloads)</h3>
+          <p>Prompts and outputs remain encrypted end-to-end to the enclave.</p>
         </div>
 
         <div class="feature-card">
-          <div class="feature-icon">🔐</div>
-          <h3>Encrypted Communication</h3>
-          <p>
-            All communication channels encrypted and authenticated. VSock-based
-            secure transport between host and enclave environments.
-          </p>
+          <div class="feature-icon">🧾</div>
+          <h3>Auditable AI for High-Assurance Environments</h3>
+          <p>Attach a verifiable AER receipt to each inference for compliance and forensics.</p>
         </div>
 
         <div class="feature-card">
-          <div class="feature-icon">🚀</div>
-          <h3>Production Ready</h3>
-          <p>
-            Built in Rust for performance and safety. Comprehensive mock mode
-            for development, production mode for AWS deployment.
-          </p>
+          <div class="feature-icon">🤝</div>
+          <h3>Third-Party Inference Providers</h3>
+          <p>Offer "trust but verify" inference to customers without exposing customer data or your model keys.</p>
         </div>
 
         <div class="feature-card">
-          <div class="feature-icon">🔬</div>
-          <h3>Research Innovation</h3>
-          <p>
-            Novel approach to AI model protection combining cryptographic
-            techniques with hardware security modules for unprecedented IP
-            protection.
-          </p>
+          <div class="feature-icon">⚙️</div>
+          <h3>Policy-Controlled Deployments</h3>
+          <p>Rotate/revoke measurements and keys when code changes or an enclave image is replaced.</p>
         </div>
       </div>
     </section>
 
-    <section class="tech-stack" id="tech">
-      <div class="features">
-        <h2 class="section-title">Technology Stack</h2>
-        <div class="tech-grid">
-          <div class="tech-item">
-            <h4>AWS Nitro Enclaves</h4>
-            <p>Hardware isolation and cryptographic attestation</p>
+    <!-- Architecture Snapshot -->
+    <section class="features" style="background: var(--darker-bg); padding: 3rem 2rem;">
+      <div style="max-width: 1000px; margin: 0 auto;">
+        <h2 class="section-title">Architecture Snapshot</h2>
+        <p style="text-align: center; font-size: 1.1rem; margin-bottom: 2rem; color: var(--text-secondary);">
+          Three-zone trust model:
+        </p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem; margin-bottom: 2rem;">
+          <div style="background: rgba(0, 255, 255, 0.1); padding: 1.5rem; border-radius: 10px; border: 1px solid var(--neon-cyan); text-align: center;">
+            <h4 style="color: var(--neon-cyan); margin-bottom: 0.5rem;">Client (Trusted)</h4>
+            <p style="font-size: 0.9rem;">Verifies attestation, holds allowlists, establishes HPKE sessions</p>
           </div>
-          <div class="tech-item">
-            <h4>Rust Language</h4>
-            <p>Memory safety and zero-cost abstractions</p>
+          <div style="background: rgba(255, 0, 128, 0.1); padding: 1.5rem; border-radius: 10px; border: 1px solid var(--neon-pink); text-align: center;">
+            <h4 style="color: var(--neon-pink); margin-bottom: 0.5rem;">Host (Untrusted)</h4>
+            <p style="font-size: 0.9rem;">Networking + storage + AWS API proxy; forwards ciphertext only</p>
           </div>
-          <div class="tech-item">
-            <h4>VSock Protocol</h4>
-            <p>Secure host-enclave communication</p>
-          </div>
-          <div class="tech-item">
-            <h4>Property-Based Testing</h4>
-            <p>Formal verification of security properties</p>
-          </div>
-          <div class="tech-item">
-            <h4>Zero-Knowledge Proofs</h4>
-            <p>Cryptographic model verification</p>
+          <div style="background: rgba(0, 255, 65, 0.1); padding: 1.5rem; border-radius: 10px; border: 1px solid var(--neon-green); text-align: center;">
+            <h4 style="color: var(--neon-green); margin-bottom: 0.5rem;">Enclave (Trusted)</h4>
+            <p style="font-size: 0.9rem;">Decrypts data, loads models, runs inference, signs receipts</p>
           </div>
         </div>
+        <div style="text-align: center; font-family: 'Orbitron', monospace; color: var(--neon-cyan); font-size: 1.1rem;">
+          Client ↔ Host Relay ↔ Enclave<br>
+          <span style="font-size: 0.9rem; color: var(--text-secondary);">+ Host ↔ KMS/S3</span>
+        </div>
+      </div>
+    </section>
 
-        <div style="text-align: center; margin-top: 3rem">
-          <h3
-            style="
-              color: var(--neon-pink);
-              font-family: 'Orbitron', monospace;
-              margin-bottom: 1rem;
-            "
-          >
-            AWS Activate Credits Application
-          </h3>
-          <p
-            style="
-              max-width: 800px;
-              margin: 0 auto;
-              color: var(--text-secondary);
-            "
-          >
-            EphemeralML is an advanced <b>R&D initiative</b> demonstrating the
-            capabilities of Confidential Computing. Built on
-            <b>AWS Nitro Enclaves</b>, this project serves as a production-grade
-            reference architecture for secure AI inference, currently under
-            active technical development.
+    <!-- Attested Execution Receipts -->
+    <section class="features">
+      <h2 class="section-title">Attested Execution Receipts (AER)</h2>
+      <div style="max-width: 800px; margin: 0 auto;">
+        <p style="text-align: center; font-size: 1.1rem; margin-bottom: 2rem; color: var(--text-primary);">
+          Each inference can return an AER containing:
+        </p>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+          <div style="background: rgba(26, 26, 46, 0.3); border: 1px solid var(--neon-cyan); padding: 1rem; border-radius: 5px; text-align: center;">
+            <strong style="color: var(--neon-cyan);">Enclave measurements</strong><br>
+            <span style="font-size: 0.9rem;">+ attestation hash</span>
+          </div>
+          <div style="background: rgba(26, 26, 46, 0.3); border: 1px solid var(--neon-green); padding: 1rem; border-radius: 5px; text-align: center;">
+            <strong style="color: var(--neon-green);">Request/response hashes</strong>
+          </div>
+          <div style="background: rgba(26, 26, 46, 0.3); border: 1px solid var(--neon-pink); padding: 1rem; border-radius: 5px; text-align: center;">
+            <strong style="color: var(--neon-pink);">Policy version</strong><br>
+            <span style="font-size: 0.9rem;">+ security mode</span>
+          </div>
+          <div style="background: rgba(26, 26, 46, 0.3); border: 1px solid var(--neon-cyan); padding: 1rem; border-radius: 5px; text-align: center;">
+            <strong style="color: var(--neon-cyan);">Monotonic sequence</strong><br>
+            <span style="font-size: 0.9rem;">+ signature</span>
+          </div>
+        </div>
+        <h3 style="color: var(--neon-green); font-family: 'Orbitron', monospace; margin-bottom: 1rem; text-align: center;">This enables:</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+          <div style="text-align: center; padding: 1rem;">
+            <div style="font-size: 2rem; margin-bottom: 0.5rem;">📋</div>
+            <strong>Audit-ready evidence</strong>
+          </div>
+          <div style="text-align: center; padding: 1rem;">
+            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔍</div>
+            <strong>Incident investigation</strong><br>
+            <span style="font-size: 0.9rem;">without storing plaintext prompts</span>
+          </div>
+          <div style="text-align: center; padding: 1rem;">
+            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔐</div>
+            <strong>"What code processed this?"</strong><br>
+            <span style="font-size: 0.9rem;">answered cryptographically</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Deployment & Integration -->
+    <section class="features" style="background: var(--darker-bg); padding: 3rem 2rem;">
+      <div style="max-width: 1000px; margin: 0 auto;">
+        <h2 class="section-title">Deployment & Integration</h2>
+        <div class="features-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));">
+          <div class="feature-card" style="border-color: var(--neon-cyan);">
+            <div class="feature-icon">☁️</div>
+            <h3>AWS Nitro Enclaves</h3>
+            <p>V1 deployment on AWS with KMS attestation-bound policy for key release</p>
+          </div>
+          <div class="feature-card" style="border-color: var(--neon-green);">
+            <div class="feature-icon">🗄️</div>
+            <h3>S3 + Signed Manifests</h3>
+            <p>Encrypted artifacts with signed manifests for model integrity verification</p>
+          </div>
+          <div class="feature-card" style="border-color: var(--neon-pink);">
+            <div class="feature-icon">🛠️</div>
+            <h3>Development Support</h3>
+            <p>Local development via mock mode (TCP + mock attestation)</p>
+          </div>
+          <div class="feature-card" style="border-color: var(--neon-cyan);">
+            <div class="feature-icon">🏛️</div>
+            <h3>Gov Cloud Ready</h3>
+            <p>Designed with government cloud constraints: strict trust boundaries, deny-by-default policies, verifiable execution evidence</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Roadmap -->
+    <section class="features">
+      <h2 class="section-title">Roadmap</h2>
+      <div style="max-width: 800px; margin: 0 auto;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+          <div style="background: rgba(0, 255, 255, 0.1); padding: 2rem; border-radius: 10px; border: 1px solid var(--neon-cyan);">
+            <h3 style="color: var(--neon-cyan); font-family: 'Orbitron', monospace; margin-bottom: 1rem;">V1 (Gateway)</h3>
+            <ul style="list-style: none; padding: 0; font-size: 0.9rem;">
+              <li style="margin-bottom: 0.5rem;">✓ Attestation + HPKE E2E sessions</li>
+              <li style="margin-bottom: 0.5rem;">✓ KMS-gated key release</li>
+              <li style="margin-bottom: 0.5rem;">✓ AER receipts</li>
+              <li style="margin-bottom: 0.5rem;">✓ Model integrity manifests</li>
+            </ul>
+          </div>
+          <div style="background: rgba(0, 255, 65, 0.1); padding: 2rem; border-radius: 10px; border: 1px solid var(--neon-green);">
+            <h3 style="color: var(--neon-green); font-family: 'Orbitron', monospace; margin-bottom: 1rem;">V2 (Shield Mode)</h3>
+            <ul style="list-style: none; padding: 0; font-size: 0.9rem;">
+              <li style="margin-bottom: 0.5rem;">• Leakage-resilient inference</li>
+              <li style="margin-bottom: 0.5rem;">• Partial-compromise scenarios</li>
+              <li style="margin-bottom: 0.5rem;">• Performance controls</li>
+              <li style="margin-bottom: 0.5rem;">• Expanded deployment targets</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="features" style="background: var(--darker-bg); padding: 3rem 2rem;">
+      <div style="max-width: 800px; margin: 0 auto;">
+        <h2 class="section-title">FAQ</h2>
+        <div style="display: grid; gap: 1.5rem;">
+          <div style="background: rgba(26, 26, 46, 0.3); border: 1px solid var(--neon-cyan); padding: 1.5rem; border-radius: 10px;">
+            <h4 style="color: var(--neon-cyan); margin-bottom: 0.5rem;">Can the host read prompts or outputs?</h4>
+            <p>No. The host relays ciphertext only; decryption occurs inside the enclave.</p>
+          </div>
+          <div style="background: rgba(26, 26, 46, 0.3); border: 1px solid var(--neon-green); padding: 1.5rem; border-radius: 10px;">
+            <h4 style="color: var(--neon-green); margin-bottom: 0.5rem;">What stops the host from decrypting model keys?</h4>
+            <p>KMS policy binds decrypt authorization to enclave measurements; without valid attestation, decrypt is denied.</p>
+          </div>
+          <div style="background: rgba(26, 26, 46, 0.3); border: 1px solid var(--neon-pink); padding: 1.5rem; border-radius: 10px;">
+            <h4 style="color: var(--neon-pink); margin-bottom: 0.5rem;">Is this a full defense against side-channels?</h4>
+            <p>No. V1 documents residual side-channel risk; mitigations are limited and explicit.</p>
+          </div>
+          <div style="background: rgba(26, 26, 46, 0.3); border: 1px solid var(--neon-cyan); padding: 1.5rem; border-radius: 10px;">
+            <h4 style="color: var(--neon-cyan); margin-bottom: 0.5rem;">Do you provide SLA / high availability?</h4>
+            <p>Not in v1. The goal is correctness and assurance first.</p>
+          </div>
+          <div style="background: rgba(26, 26, 46, 0.3); border: 1px solid var(--neon-green); padding: 1.5rem; border-radius: 10px;">
+            <h4 style="color: var(--neon-green); margin-bottom: 0.5rem;">Do you support confidential GPU?</h4>
+            <p>Not in v1. This is future scope.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+    <!-- Final CTA -->
+    <section class="tech-stack" id="pilot">
+      <div class="features">
+        <h2 class="section-title" style="color: var(--neon-pink);">Request a Pilot</h2>
+        <div style="text-align: center; max-width: 800px; margin: 0 auto;">
+          <p style="font-size: 1.2rem; margin-bottom: 2rem; color: var(--text-primary);">
+            If you deploy AI in a high-assurance environment and need verifiable confidentiality, EphemeralML is built for you.
           </p>
+          <div style="display: flex; gap: 1.5rem; justify-content: center; margin-bottom: 2rem; flex-wrap: wrap;">
+            <a href="mailto:contact@cyntrisec.com" class="cta-button" style="background: var(--neon-cyan); color: var(--dark-bg);">Request Pilot</a>
+            <a href="mailto:contact@cyntrisec.com" class="cta-button" style="border-color: var(--neon-green); color: var(--neon-green);">Talk to Security</a>
+          </div>
+          <div style="margin-top: 3rem; padding: 2rem; background: rgba(26, 26, 46, 0.3); border: 1px solid var(--neon-cyan); border-radius: 10px;">
+            <h3 style="color: var(--neon-cyan); font-family: 'Orbitron', monospace; margin-bottom: 1rem;">One-line taglines:</h3>
+            <div style="display: grid; gap: 0.5rem; font-family: 'Orbitron', monospace; font-size: 0.9rem;">
+              <p style="color: var(--neon-green);">"Confidential inference with cryptographic proof."</p>
+              <p style="color: var(--neon-pink);">"Run inference like the host is already hacked."</p>
+              <p style="color: var(--neon-cyan);">"Attestation-gated model access + end-to-end encrypted prompts."</p>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -641,27 +935,21 @@
               margin-bottom: 0.5rem;
             "
           >
-            CyntriSec
+            EphemeralML
           </h4>
           <p style="color: var(--text-secondary); margin-bottom: 1rem">
-            Advanced Cybersecurity & AI Research
+            Confidential Inference Gateway • Specification Complete
           </p>
-          <p
-            style="
-              color: var(--neon-green);
-              font-family: 'Orbitron', monospace;
-              margin-bottom: 0.5rem;
-            "
-          >
-            ephemeralml.cyntrisec.com
-          </p>
+          <a href="https://github.com/tsyrulb/EphemeralML" style="color: var(--neon-green); font-family: 'Orbitron', monospace; text-decoration: none; font-size: 1rem; margin-bottom: 1rem; display: inline-block;">
+            🔗 GitHub Repository
+          </a>
+          <br>
           <a href="mailto:contact@cyntrisec.com" style="color: var(--neon-pink); font-family: 'Orbitron', monospace; text-decoration: none;">
-  contact@cyntrisec.com
-</a>
+            contact@cyntrisec.com
+          </a>
         </div>
         <p>
-          &copy; 2025 CyntriSec. EphemeralML - Advancing AI Security Through
-          Hardware Isolation.
+          &copy; 2025 EphemeralML. Defense-in-Depth Confidential AI Inference.
         </p>
       </div>
     </footer>
