@@ -11,6 +11,19 @@ thiserror = { workspace = true }
 uuid = { workspace = true }
 sha2 = { workspace = true }
 
+# Cryptographic dependencies
+hpke = { workspace = true }
+ed25519-dalek = { workspace = true }
+x25519-dalek = { workspace = true }
+rand = { workspace = true }
+zeroize = { workspace = true }
+
+# CBOR serialization
+serde_cbor = { workspace = true }
+
+# Serde bytes for efficient byte array serialization
+serde_bytes = "0.11"
+
 [dev-dependencies]
 proptest = { workspace = true }
 

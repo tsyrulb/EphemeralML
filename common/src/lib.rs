@@ -6,6 +6,8 @@
 pub mod error;
 pub mod types;
 pub mod validation;
+pub mod hpke_session;
+pub mod receipt_signing;
 
 // Re-export commonly used types and errors
 pub use error::{
@@ -27,6 +29,15 @@ pub use types::{
     
     // Session and audit types
     SessionInfo, SessionStatus, AuditLogEntry, AuditEventType, AuditSeverity,
+};
+
+pub use hpke_session::{
+    HPKESession, HPKESessionManager, HPKEConfig, EncryptedMessage, SessionId,
+};
+
+pub use receipt_signing::{
+    ReceiptSigningKey, AttestationUserData, AttestationReceipt, SecurityMode,
+    EnclaveMeasurements, ReceiptBinding, ReceiptVerifier,
 };
 
 pub use validation::{
