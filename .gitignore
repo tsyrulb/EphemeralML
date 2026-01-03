@@ -107,6 +107,12 @@ out/
 
 # Kiro specific - exclude all spec files and directories
 .kiro/
+
+# Internal development files
+BUILD_REPRODUCIBILITY.md
+TASK_*_SUMMARY.md
+build.py
+validate_structure.py
 # Python cache (for build scripts)
 __pycache__/
 *.py[cod]
