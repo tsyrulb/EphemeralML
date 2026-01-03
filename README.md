@@ -5,327 +5,246 @@
 
 # 🔒 EphemeralML: Confidential Inference Gateway
 
-> **Attested. Encrypted end-to-end. Evidence-producing.**  
-> EphemeralML is a **confidential inference gateway** for protecting **model weights and sensitive inputs** through defense-in-depth security architecture.
+> **High-assurance confidential inference with verifiable execution receipts**  
+> Run sensitive AI inference where model weights and prompts stay protected, even if the host is compromised.
 
-EphemeralML implements a two-layer security strategy:
-
-- **Layer 1 — Gateway (v1 Implementation):**  
-  **TEE isolation + attestation-gated key release + HPKE encrypted sessions** where the **host acts as a blind relay**.
-- **Layer 2 — Shield Mode (Future v2):**  
-  **Leakage-resilient inference**: structured obfuscation to make captured weights not directly usable under defined partial-compromise scenarios.
-
-> ⚠️ EphemeralML provides **explicit guarantees under explicit assumptions**, with comprehensive documentation of limitations and threat model boundaries.
+EphemeralML is a **Confidential Inference Gateway** built on AWS Nitro Enclaves with:
+- **Attestation-gated key release** + **HPKE encrypted sessions** + **audit receipts**
+- **Host acts as blind relay** - cannot decrypt prompts, outputs, or model keys
+- **Designed for regulated and high-assurance environments** (government clouds, defense contractors, critical infrastructure)
 
 ---
 
-## 🎯 Why EphemeralML?
+## 🎯 The Problem
 
-### The Problem
-Traditional inference deployments expose valuable assets to execution environments:
-- **Model IP exposure:** weights are present where admins/operators/host compromise may access them
-- **Sensitive prompt/data exposure:** inputs may be visible to the host stack
-- **No audit-grade evidence:** teams cannot prove which code actually processed sensitive inference
+Most "secure inference" systems still leave critical gaps:
 
-### Our Approach
-EphemeralML implements a **defense-in-depth** confidential inference architecture:
+- **Host Exposure**: The host can often see plaintext prompts or decrypted weights at some point in the pipeline
+- **Transit ≠ Protection**: "Encryption in transit" doesn't prevent data exposure on compromised hosts  
+- **No Proof**: Compliance teams need proof of what code processed an inference — not just logs
+- **Circular Trust**: Key management is frequently enforced by the same environment you don't trust
 
-- 🔐 **Attestation-Bound Secure Sessions**  
-  The client verifies TEE measurements and establishes **HPKE encrypted sessions** bound to the enclave's cryptographic identity.
-- 🔑 **Attestation-Gated Key Release**  
-  Decryption keys for models are released only to **approved enclave measurements** via AWS KMS policies.
-- 🧾 **Attested Execution Receipts (AER)**  
-  Every inference generates cryptographic evidence (measurements, request hash, timestamp, signature).
-- 🛡️ **Shield Mode (Future v2)**  
-  Structured weight obfuscation to reduce direct usability of captured weights in partial boundary failures.
+**EphemeralML is built for the scenario that matters in high-assurance: assume the host is compromised — and still keep secrets protected.**
 
 ---
 
-## 🏗️ Architecture (Host = Blind Relay, TEE = Trust Domain)
+## 🛡️ What EphemeralML Protects
 
-```mermaid
-graph TB
-    subgraph "Client Zone (Trusted)"
-        C[Client Application]
-        V[Attestation Verifier]
-        E2E[HPKE Session Manager]
-        AL[Measurement Allowlist]
-        C --> V --> E2E
-        V --> AL
-    end
-    
-    subgraph "Host Zone (Untrusted Relay)"
-        HP[Host Proxy]
-        VP[VSock Proxy]
-        KP[KMS Proxy]
-        S3P[S3 Proxy]
-        S3[Encrypted Model Storage]
-        HP --> VP
-        HP --> KP --> AWS_KMS[AWS KMS]
-        HP --> S3P --> S3
-    end
-    
-    subgraph "Enclave Zone (Trusted Compute)"
-        NSM[Nitro Security Module]
-        AD[Attestation Document Generator]
-        KMS[KMS Client via VSock]
-        SM[Session Manager]
-        ML[Model Loader]
-        IE[Inference Engine]
-        AER[Receipt Generator]
-        
-        NSM --> AD
-        AD --> SM
-        KMS --> ML
-        ML --> IE
-        IE --> AER
-    end
+EphemeralML is a **Confidential Inference Gateway** that protects:
 
-    %% Flow
-    C -.->|1) Attestation Challenge + Nonce| AD
-    AD -.->|2) Attestation Doc + Ephemeral Keys| V
-    E2E -.->|3) HPKE Encrypted Payload| VP
-    VP -.->|4) VSock| SM
-    KP -.->|5) Encrypted DEKs & Models| HP
-    HP -.->|6) Stream Ciphertext| VP
-    AER -.->|7) Signed Receipt| C
+| **Model weights (IP)** | **User inputs/outputs (PII / classified)** | **Execution integrity (verified code)** |
+|------------------------|---------------------------------------------|------------------------------------------|
 
-    style NSM fill:#ff6b6b
-    style C fill:#4ecdc4
-    style HP fill:#45b7d1
+It does this with a **two-part foundation**:
+- **TEE isolation** (Nitro Enclave) for trusted operations
+- **Attestation-bound cryptography** so secrets are released only to approved enclave measurements
+
+---
+
+## 🔄 How It Works (3 Steps)
+
+### 1️⃣ Verify the enclave (Attestation)
+The client verifies the enclave identity + code measurement against an allowlist.
+
+### 2️⃣ Establish encrypted session (HPKE)  
+All requests and responses are encrypted to the enclave. The host forwards ciphertext only.
+
+### 3️⃣ Load models with gated keys (KMS)
+Model keys are released only when KMS confirms the enclave measurement matches policy. The host never sees plaintext keys.
+
+---
+
+## ✅ Security Guarantees (v1)
+
+### We guarantee:
+- ✓ **Host blindness**: the host can relay traffic but cannot decrypt prompts, outputs, or model keys
+- ✓ **Attestation-gated key release**: model DEKs are released only to approved enclave measurements  
+- ✓ **Session binding**: encryption keys are bound to attestation + nonce to prevent key swapping
+- ✓ **Anti-swap model integrity**: signed model manifests prevent serving a different model blob
+- ✓ **Auditability**: each inference produces an Attested Execution Receipt (AER) clients can verify
+
+### We explicitly do not claim (v1):
+- × Protection against all microarchitectural side-channels
+- × Availability guarantees (the host can DoS)
+- × "Confidentiality under full enclave compromise"  
+- × Multi-cloud / confidential GPU support
+
+---
+
+## 🏗️ Architecture
+
+**Three-zone trust model:**
+
+```
+Client (Trusted) ↔ Host (Untrusted Relay) ↔ Enclave (Trusted Compute)
+                        ↕
+                    KMS/S3 (AWS)
 ```
 
-### Component Roles
-
-* **Client Zone (Trusted):**
-  * Verifies attestation documents against AWS Nitro roots and measurement allowlists
-  * Establishes HPKE encrypted sessions bound to attested ephemeral keys
-  * Encrypts sensitive payloads end-to-end to enclave
-  * Verifies AER receipts using Ed25519 signatures
-
-* **Host Zone (Untrusted Relay):**
-  * Provides networking, storage I/O, and AWS API proxy services
-  * **Must never see plaintext** model weights, DEKs, or user inputs
-  * Forwards encrypted payloads via VSock without inspection
-  * Can DoS (availability is not guaranteed)
-
-* **Enclave Zone (Trusted Compute):**
-  * Generates attestation documents with ephemeral public keys
-  * Decrypts models using attestation-gated KMS DEKs
-  * Executes inference within hardware-isolated boundary
-  * Generates signed execution receipts for audit trails
+- **Client Zone**: Verifies attestation, holds allowlists, establishes HPKE sessions
+- **Host Zone**: Networking + storage + AWS API proxy; forwards ciphertext only  
+- **Enclave Zone**: Decrypts data, loads models, runs inference, signs receipts
 
 ---
 
-## 🔥 What's New vs "TEE wrapper" Projects
+## 🧾 Attested Execution Receipts (AER)
 
-✅ **Host is a ciphertext-only blind relay** (not "semi-trusted").  
-✅ **Key release is cryptographically bound to attestation** (KMS policy enforcement).  
-✅ **HPKE sessions bound to ephemeral keys** in attestation user data.  
-✅ **Evidence is first-class** (AER receipts with Ed25519 signatures per inference).  
-✅ **Comprehensive specification** (14 requirements, 18-task implementation plan, 29 property tests).  
-✅ **Shield Mode architecture** ready for v2 leakage-resilient inference.
+Each inference can return an **AER** containing:
+- Enclave measurements + attestation hash
+- Request/response hashes  
+- Policy version + security mode
+- Monotonic sequence + signature
+
+**This enables:**
+- 📋 **Audit-ready evidence**
+- 🔍 **Incident investigation** without storing plaintext prompts
+- 🔐 **"What code processed this?"** answered cryptographically
 
 ---
 
-## 🛡️ Security Model (Concise)
+## 👥 Who It's For
 
-### Threat Model (v1)
+### Buyers / Owners
+- Government cloud platform teams (high-assurance)
+- Defense contractors running sensitive analytics
+- Regulated enterprises (finance, health) protecting proprietary models and PII
+- ML platform teams needing auditable, verifiable inference execution
 
-**In scope:**
-* Malicious/curious host OS and administrators
-* Tampering with deployment artifacts (blocked via attestation allowlists)
-* Replay attempts (blocked via nonce-based freshness challenges)
-* Partial boundary failures where memory scraping becomes feasible (Shield Mode v2 target)
+### Users  
+- ML engineers deploying protected inference endpoints
+- Security teams enforcing key release policy + allowlists
+- Compliance teams verifying AER receipts for audits and investigations
 
-**Out of scope (v1):**
-* Black-box distillation via repeated queries (rate limits, monitoring, watermarking)
-* Complete protection from microarchitectural side-channels
-* Availability guarantees (host can DoS)
+---
 
-### Guarantees (v1)
+## 🎯 Use Cases
 
-* **G1:** Host cannot read user payload plaintext (HPKE E2E encryption)
-* **G2:** Host cannot read model weights plaintext (attestation-gated KMS DEK release)
-* **G3:** Client can verify enclave code identity before releasing secrets (attestation verification)
-* **G4:** Each inference produces cryptographically signed Attested Execution Receipt (AER)
-
-### Shield Mode (v2)
-
-* **G5 (future):** Captured weights are not directly usable without session secrets/masking factors
-
-> Full threat model, assumptions (A1-A26), and misuse cases (MC-01 to MC-15) documented in `appendix/`.
+| Use Case | Description |
+|----------|-------------|
+| **Protected Model Serving** | Keep model weights encrypted at rest and decrypted only inside an attested enclave |
+| **Sensitive Inference** | Prompts and outputs remain encrypted end-to-end to the enclave |
+| **Auditable AI** | Attach a verifiable AER receipt to each inference for compliance and forensics |
+| **Third-Party Providers** | Offer "trust but verify" inference without exposing customer data or model keys |
+| **Policy-Controlled Deployments** | Rotate/revoke measurements and keys when code changes or enclave images are replaced |
 
 ---
 
 ## 🚀 Quick Start
 
-### Implementation Status
+### Current Status: Specification Complete ✅
 
-**Current Status:** ✅ **Specification Complete** - Ready for implementation
-
-The system is fully specified with:
+The system is fully specified and ready for implementation:
 - **14 comprehensive requirements** with detailed acceptance criteria
-- **Complete architecture design** with Layer 1 (Gateway) + Layer 2 (Shield Mode) security
-- **18-task implementation plan** with 29 property tests for security validation
-- **AWS Nitro Enclaves integration** approach with VSock and KMS attestation-bound policies
+- **Complete architecture design** with 3-zone security model  
+- **18-task implementation plan** with security validation tests
 
-### Begin Implementation
-
-To start building the system:
+### Development Setup (Future)
 
 ```bash
-# 1. Review the complete specification
-ls .kiro/specs/confidential-inference-gateway/
-# requirements.md - 14 detailed requirements with acceptance criteria
-# design.md - complete architecture with 3-zone security model
-# tasks.md - 18-task implementation plan with property tests
-
-# 2. Start with Task 1: Set up project structure
-# Open .kiro/specs/confidential-inference-gateway/tasks.md
-# Follow the incremental 18-task implementation plan
-```
-
-### Future: Development Mode (Post-Implementation)
-
-Once implemented, local development with mock transport:
-
-```bash
+# Local development with mock attestation
 cargo build --features mock
 
-# Terminal 1: mock enclave (TCP mode)
+# Terminal 1: Mock enclave (TCP mode)
 cd enclave && cargo run --features mock
 
-# Terminal 2: host relay  
-cd host && cargo run --features mock
+# Terminal 2: Host relay
+cd host && cargo run --features mock  
 
-# Terminal 3: client
+# Terminal 3: Client
 cd client && cargo run --features mock
 ```
 
-### Future: Production Mode (Post-Implementation)
-
-Once implemented, deploy on AWS Nitro Enclaves:
+### Production Deployment (Future)
 
 ```bash
-# Build production artifacts
+# Build for AWS Nitro Enclaves
 cargo build --release --features production --no-default-features
 
 # Deploy EIF on Nitro-capable EC2 instance
-# See tasks 19.1-19.2 for complete deployment procedures
+# (See implementation plan for complete deployment procedures)
 ```
 
 ---
 
-## 📁 Project Structure
+## 🛠️ Implementation Plan
 
-```
-EphemeralML/
-├── .kiro/specs/confidential-inference-gateway/
-│   ├── requirements.md     # 14 comprehensive requirements with acceptance criteria
-│   ├── design.md          # complete 3-zone architecture (Client/Host/Enclave)
-│   └── tasks.md           # 18-task implementation plan with 29 property tests
-├── appendix/
-│   ├── AppendixA.md       # explicit assumptions (A1-A26)
-│   ├── AppendixB.md       # assumption-to-guarantee mapping
-│   └── AppendixC.md       # misuse cases (MC-01 to MC-15)
-├── client/                # [TO BE IMPLEMENTED] attestation verifier + HPKE sessions
-├── host/                  # [TO BE IMPLEMENTED] blind relay + VSock proxy + AWS API mediation
-├── enclave/               # [TO BE IMPLEMENTED] trusted runtime (NSM, KMS, inference, receipts)
-├── common/                # [TO BE IMPLEMENTED] shared protocol types and crypto primitives
-└── tests/                 # [TO BE IMPLEMENTED] integration and property tests (29 tests planned)
-```
+### Phase 1: Cryptographic Core (Tasks 1-6)
+- Attestation verification, HPKE sessions, receipt generation
+
+### Phase 2: Communication (Tasks 7-12)  
+- VSock transport, KMS integration, model loading
+
+### Phase 3: Production (Tasks 13-18)
+- Error handling, logging, deployment validation
+
+**Testing Strategy**: 29 property tests for security validation + unit tests + integration tests
 
 ---
 
-## 🧪 Testing
+## 🗺️ Roadmap
 
-**Implementation Status:** Comprehensive testing strategy specified
+### V1 (Gateway) - Current Focus
+- ✓ Attestation + HPKE E2E sessions
+- ✓ KMS-gated key release  
+- ✓ AER receipts
+- ✓ Model integrity manifests
 
-The implementation plan includes:
-- **29 Property Tests** for security-critical components and universal correctness properties
-- **Unit Tests** for specific examples, edge cases, and integration points  
-- **Integration Tests** for end-to-end workflows and security boundary enforcement
-- **Performance Benchmarks** for v1 model scope (embedding models, small classifiers)
-
-Once implemented:
-```bash
-cargo test                         # Run all tests
-cargo test --features mock        # Run with mock attestation (local dev)
-cargo test --features production  # Run with real Nitro attestation
-cargo test property_               # Run property tests only
-```
-
-### Key Property Tests (Planned)
-- **Property 1:** Attestation Verification Integrity
-- **Property 2:** HPKE Session Binding to Attestation  
-- **Property 6:** Host Blindness to Sensitive Data
-- **Property 10:** Comprehensive Receipt Generation and Verification
-- **Property 11:** Session Isolation and Lifecycle Management
+### V2 (Shield Mode) - Future
+- Leakage-resilient inference under defined partial-compromise scenarios
+- Performance controls  
+- Expanded deployment targets
 
 ---
 
-## 🔧 Feature Flags
+## ☁️ Deployment & Integration
 
-* `mock` (default): Local development with TCP transport + mock attestation documents
-* `production`: VSock transport + real AWS Nitro attestation flows for production deployment
-* `shield_mode` (planned v2): Enables LRCI primitives and leakage-resilient inference benchmarks
-
----
-
-## 📚 Documentation
-
-### Specification (Complete)
-* `.kiro/specs/confidential-inference-gateway/requirements.md` — 14 comprehensive requirements with detailed acceptance criteria
-* `.kiro/specs/confidential-inference-gateway/design.md` — complete 3-zone architecture with HPKE sessions, VSock communication, and KMS integration
-* `.kiro/specs/confidential-inference-gateway/tasks.md` — 18-task incremental implementation plan with 29 property tests
-
-### Security Analysis (Complete)
-* `appendix/AppendixA.md` — explicit assumptions (A1-A26: what must be true for guarantees to hold)
-* `appendix/AppendixB.md` — assumption-to-guarantee mapping (what breaks what)
-* `appendix/AppendixC.md` — misuse cases (MC-01 to MC-15: common wrong deployments and why they fail)
-
-### Research Context
-* `appendix/scientific-grounding.md` — related work and research papers
-* `appendix/open-source-shortlist.md` — relevant open source projects
+- **AWS Nitro Enclaves** for v1 deployment
+- **KMS attestation-bound policy** for key release
+- **S3 encrypted artifacts** with signed manifests
+- **Mock mode support** for local development  
+- **Gov cloud ready**: Strict trust boundaries, deny-by-default policies, verifiable execution evidence
 
 ---
 
-## 🔗 Related Work & Inspiration
+## ❓ FAQ
 
-EphemeralML is informed by confidential inference system designs and model-protection research.
-See `appendix/scientific-grounding.md` for a curated list of papers (LoRO, TEESlice, NNSplitter, Slalom, Glamdring, etc.).
+**Q: Can the host read prompts or outputs?**  
+A: No. The host relays ciphertext only; decryption occurs inside the enclave.
+
+**Q: What stops the host from decrypting model keys?**  
+A: KMS policy binds decrypt authorization to enclave measurements; without valid attestation, decrypt is denied.
+
+**Q: Is this a full defense against side-channels?**  
+A: No. V1 documents residual side-channel risk; mitigations are limited and explicit.
+
+**Q: Do you provide SLA / high availability?**  
+A: Not in v1. The goal is correctness and assurance first.
+
+**Q: Do you support confidential GPU?**  
+A: Not in v1. This is future scope.
 
 ---
 
-## 🤝 Community & Feedback
+## 📞 Contact
 
-**Current Phase:** **Specification Complete** - Ready for implementation
+**Request a Pilot**: If you deploy AI in a high-assurance environment and need verifiable confidentiality, EphemeralML is built for you.
 
-We welcome feedback on the specification and implementation approach:
-
-* 📋 **Specification Review**: Review `.kiro/specs/confidential-inference-gateway/` for technical feedback on requirements, design, and implementation plan
-* 🔐 **Security Analysis**: Review `appendix/` for security model, assumptions, and threat analysis feedback
-* 🐛 **Implementation Issues**: Open issues as implementation progresses following the 18-task plan
-* 📧 **Private Security Reports**: [security@ephemeralml.com](mailto:security@ephemeralml.com)
-
-**Implementation Roadmap:**
-1. **Phase 1 (Tasks 1-6):** Core cryptographic functionality (attestation, HPKE, receipts)
-2. **Phase 2 (Tasks 7-12):** Communication and model loading (VSock, KMS, inference)
-3. **Phase 3 (Tasks 13-18):** Production hardening (error handling, logging, deployment)
-4. **Phase 4 (v2):** Shield Mode leakage-resilient inference
+- 📧 **Email**: [contact@cyntrisec.com](mailto:contact@cyntrisec.com)
+- 🔗 **Repository**: [github.com/tsyrulb/EphemeralML](https://github.com/tsyrulb/EphemeralML)
 
 ---
 
 ## 📄 License
 
-MIT. See `LICENSE`.
+MIT License - see `LICENSE` file for details.
 
 ---
 
 <div align="center">
 
-**🔒 Attested Execution • 🧾 Evidence Receipts • 🛡️ Defense-in-Depth Confidential AI**
+**🔒 Confidential inference with cryptographic proof**  
+**🛡️ Run inference like the host is already hacked**  
+**🔐 Attestation-gated model access + end-to-end encrypted prompts**
 
 *Specification Complete - Implementation Ready*
 
