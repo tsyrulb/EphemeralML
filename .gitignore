@@ -110,6 +110,8 @@ out/
 
 # Internal development files
 BUILD_REPRODUCIBILITY.md
+IMPLEMENTATION_GUIDE.md
+PROJECT_SUMMARY.md
 TASK_*_SUMMARY.md
 build.py
 validate_structure.py

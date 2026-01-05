@@ -156,15 +156,24 @@ impl HPKESession {
         // Create message frame: version || session_id || seq_no || plaintext
         let message_frame = self.create_message_frame(plaintext, sequence_number)?;
         
-        // Encrypt using ChaCha20-Poly1305 (simplified for v1)
-        let ciphertext = self.encrypt_frame(&message_frame)?;
+        // Encrypt using ChaCha20-Poly1305 AEAD with the specific sequence number
+        let ciphertext = self.encrypt_frame_with_sequence(&message_frame, sequence_number)?;
+        
+        // Extract authentication tag from the end of ciphertext (last 16 bytes)
+        if ciphertext.len() < 16 {
+            return Err(EphemeralError::EncryptionError("Ciphertext too short for auth tag".to_string()));
+        }
+        
+        let (encrypted_data, auth_tag_slice) = ciphertext.split_at(ciphertext.len() - 16);
+        let mut auth_tag = [0u8; 16];
+        auth_tag.copy_from_slice(auth_tag_slice);
         
         Ok(EncryptedMessage {
             session_id: self.session_id.clone(),
             protocol_version: self.protocol_version,
             sequence_number,
-            ciphertext,
-            auth_tag: [0u8; 16], // Simplified for v1
+            ciphertext: encrypted_data.to_vec(),
+            auth_tag,
         })
     }
     
@@ -182,8 +191,12 @@ impl HPKESession {
             return Err(EphemeralError::DecryptionError("Protocol version mismatch".to_string()));
         }
         
-        // Decrypt and verify message frame
-        let message_frame = self.decrypt_frame(&message.ciphertext)?;
+        // Reconstruct full ciphertext with authentication tag for ChaCha20-Poly1305
+        let mut full_ciphertext = message.ciphertext.clone();
+        full_ciphertext.extend_from_slice(&message.auth_tag);
+        
+        // Decrypt and verify message frame using the sequence number from the message
+        let message_frame = self.decrypt_frame(&full_ciphertext, message.sequence_number)?;
         self.parse_message_frame(&message_frame, message.sequence_number)
     }
     
@@ -274,26 +287,66 @@ impl HPKESession {
         Ok(frame[offset..].to_vec())
     }
     
-    /// Encrypt message frame (simplified for v1)
-    fn encrypt_frame(&self, frame: &[u8]) -> Result<Vec<u8>> {
-        // Simplified encryption for v1 - XOR with session key
-        // In production, this would use ChaCha20-Poly1305
-        let mut ciphertext = frame.to_vec();
-        for (i, byte) in ciphertext.iter_mut().enumerate() {
-            *byte ^= self.session_key[i % 32];
-        }
+    /// Encrypt message frame using ChaCha20-Poly1305 AEAD with specific sequence number
+    fn encrypt_frame_with_sequence(&self, frame: &[u8], sequence_number: u64) -> Result<Vec<u8>> {
+        use chacha20poly1305::{
+            aead::{Aead, KeyInit},
+            ChaCha20Poly1305,
+        };
+        
+        // Create cipher from session key
+        let cipher = ChaCha20Poly1305::new_from_slice(&self.session_key)
+            .map_err(|e| EphemeralError::EncryptionError(format!("Failed to create cipher: {}", e)))?;
+        
+        // Generate nonce from the specific sequence number
+        let nonce = self.derive_nonce_for_sequence(sequence_number)?;
+        
+        // Encrypt with authenticated encryption
+        let ciphertext = cipher.encrypt(&nonce.into(), frame)
+            .map_err(|e| EphemeralError::EncryptionError(format!("Encryption failed: {}", e)))?;
+        
         Ok(ciphertext)
     }
     
-    /// Decrypt message frame (simplified for v1)
-    fn decrypt_frame(&self, ciphertext: &[u8]) -> Result<Vec<u8>> {
-        // Simplified decryption for v1 - XOR with session key
-        // In production, this would use ChaCha20-Poly1305
-        let mut plaintext = ciphertext.to_vec();
-        for (i, byte) in plaintext.iter_mut().enumerate() {
-            *byte ^= self.session_key[i % 32];
-        }
+    /// Decrypt message frame using ChaCha20-Poly1305 AEAD
+    fn decrypt_frame(&self, ciphertext: &[u8], sequence_number: u64) -> Result<Vec<u8>> {
+        use chacha20poly1305::{
+            aead::{Aead, KeyInit},
+            ChaCha20Poly1305,
+        };
+        
+        // Create cipher from session key
+        let cipher = ChaCha20Poly1305::new_from_slice(&self.session_key)
+            .map_err(|e| EphemeralError::DecryptionError(format!("Failed to create cipher: {}", e)))?;
+        
+        // Generate nonce from the specific sequence number used for encryption
+        let nonce = self.derive_nonce_for_sequence(sequence_number)?;
+        
+        // Decrypt with authentication verification
+        let plaintext = cipher.decrypt(&nonce.into(), ciphertext)
+            .map_err(|e| EphemeralError::DecryptionError(format!("Decryption failed: {}", e)))?;
+        
         Ok(plaintext)
+    }
+    
+    /// Derive nonce for ChaCha20-Poly1305 from session state and sequence number
+    fn derive_nonce_for_sequence(&self, sequence_number: u64) -> Result<[u8; 12]> {
+        use sha2::{Sha256, Digest};
+        
+        // Derive nonce from session key, specific sequence number, and transcript hash
+        let mut hasher = Sha256::new();
+        hasher.update(&self.session_key);
+        hasher.update(&sequence_number.to_be_bytes());
+        hasher.update(&self.transcript_hash);
+        hasher.update(b"ChaCha20Poly1305-Nonce");
+        
+        let hash = hasher.finalize();
+        
+        // Take first 12 bytes for ChaCha20-Poly1305 nonce
+        let mut nonce_bytes = [0u8; 12];
+        nonce_bytes.copy_from_slice(&hash[..12]);
+        
+        Ok(nonce_bytes)
     }
     
     /// Check if session is expired
@@ -496,6 +549,45 @@ mod tests {
         let decrypted = session.decrypt(&encrypted).unwrap();
         
         assert_eq!(plaintext, decrypted.as_slice());
+    }
+    
+    #[test]
+    fn test_chacha20_poly1305_encryption() {
+        let mut session = HPKESession::new(
+            "test-chacha20".to_string(),
+            1,
+            [1u8; 32],
+            [2u8; 32],
+            [3u8; 32],
+            3600,
+        ).unwrap();
+        
+        let enclave_private_key = [4u8; 32];
+        session.establish(&enclave_private_key).unwrap();
+        
+        let plaintext = b"Test ChaCha20-Poly1305 encryption";
+        let encrypted1 = session.encrypt(plaintext).unwrap();
+        let encrypted2 = session.encrypt(plaintext).unwrap();
+        
+        // Verify that the same plaintext produces different ciphertext due to sequence numbers
+        assert_ne!(encrypted1.ciphertext, encrypted2.ciphertext);
+        assert_ne!(encrypted1.sequence_number, encrypted2.sequence_number);
+        
+        // Verify that ciphertext is not just XOR (would be predictable pattern)
+        let mut xor_result = plaintext.to_vec();
+        for (i, byte) in xor_result.iter_mut().enumerate() {
+            *byte ^= session.session_key[i % 32];
+        }
+        
+        // ChaCha20-Poly1305 ciphertext should be different from simple XOR
+        assert_ne!(encrypted1.ciphertext, xor_result);
+        
+        // Verify decryption works correctly
+        let decrypted1 = session.decrypt(&encrypted1).unwrap();
+        let decrypted2 = session.decrypt(&encrypted2).unwrap();
+        
+        assert_eq!(plaintext, decrypted1.as_slice());
+        assert_eq!(plaintext, decrypted2.as_slice());
     }
     
     #[test]
