@@ -114,11 +114,7 @@ PY
     --cli-input-json "file://$tmp_json" \
     --output json)"
 
-  cmd_id="$(python3 - <<PY
-import json
-print(json.loads('''$resp''')['Command']['CommandId'])
-PY
-)"
+  cmd_id="$(echo "$resp" | python3 -c 'import json, sys; print(json.load(sys.stdin)["Command"]["CommandId"])')"
   log "command_id=$cmd_id"
 
   # Wait for completion (poll), but do not exceed cycle timeout.
@@ -135,31 +131,23 @@ PY
     local inv
     inv="$(aws "${AWS_PROFILE_OPT[@]}" ssm list-command-invocations --region "$REGION" --command-id "$cmd_id" --details --output json || true)"
     local status
-    status="$(python3 - <<PY
-import json
-j=json.loads('''$inv''')
-if not j.get('CommandInvocations'):
-  print('UNKNOWN')
-else:
-  print(j['CommandInvocations'][0].get('Status','UNKNOWN'))
-PY
-)"
+    status="$(echo "$inv" | python3 -c 'import json, sys; j=json.load(sys.stdin); print(j["CommandInvocations"][0]["Status"] if j.get("CommandInvocations") else "UNKNOWN")')"
 
     log "ssm_status=$status"
 
     if [[ "$status" == "Success" || "$status" == "Cancelled" || "$status" == "TimedOut" || "$status" == "Failed" ]]; then
       # Print a short tail of stdout/stderr for quick triage
-      python3 - <<PY
-import json
-j=json.loads('''$inv''')
+      echo "$inv" | python3 - <<'PY'
+import json, sys
+j=json.load(sys.stdin)
 if not j.get('CommandInvocations'):
-  raise SystemExit(0)
+    sys.exit(0)
 ci=j['CommandInvocations'][0]
 plugins=ci.get('CommandPlugins') or []
 for p in plugins:
-  out=(p.get('Output') or '')
-  print('\n--- plugin:', p.get('Name'), 'status:', p.get('Status'))
-  print(out[-3000:])
+    out=(p.get('Output') or '')
+    print(f"\n--- plugin: {p.get('Name')} status: {p.get('Status')}")
+    print(out[-3000:])
 PY
       break
     fi
