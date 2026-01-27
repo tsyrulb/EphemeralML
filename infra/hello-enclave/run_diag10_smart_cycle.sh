@@ -13,7 +13,9 @@ cd "$ROOT_DIR"
 
 REGION="${REGION:-us-east-1}"
 # Ordered by preference: cheapest viable first.
-CAND_INSTANCE_TYPES_DEFAULT=(c6i.large c6i.xlarge m6i.large m6i.xlarge c6a.large c6a.xlarge m6a.large m6a.xlarge)
+# NOTE: Nitro Enclaves are NOT supported on many *.large sizes (e.g. c6i.large).
+# Use xlarge+ to avoid InvalidParameterValue.
+CAND_INSTANCE_TYPES_DEFAULT=(c6i.xlarge m6i.xlarge c6a.xlarge m6a.xlarge c6i.2xlarge m6i.2xlarge)
 CAND_AZS_DEFAULT=(us-east-1a us-east-1b us-east-1c us-east-1d us-east-1f)
 
 # Optional overrides (space-separated)
@@ -77,7 +79,8 @@ attempt() {
   local instance_id=""
   instance_id="$(terraform output -raw instance_id 2>/dev/null || true)"
   if [[ -z "$instance_id" ]]; then
-    instance_id="$(terraform state show -no-color aws_instance.host 2>/dev/null | awk '/^id\s*=/{print $3}' | head -n1 || true)"
+    # Parse from state safely. Expect: id = "i-..."
+    instance_id="$(terraform state show -no-color aws_instance.host 2>/dev/null | sed -n 's/^id\s*=\s*"\(i-[a-z0-9]\+\)".*/\1/p' | head -n1 || true)"
   fi
 
   if [[ $apply_rc -eq 124 ]]; then
@@ -92,7 +95,12 @@ attempt() {
 
   if [[ $apply_rc -ne 0 ]]; then
     log "apply failed rc=$apply_rc"
-    if [[ -n "$instance_id" ]]; then aws_ec2_dump_instance "$instance_id"; fi
+    # Only query EC2 if we have a clean instance id.
+    if [[ "$instance_id" =~ ^i-[a-z0-9]+$ ]]; then
+      aws_ec2_dump_instance "$instance_id"
+    else
+      log "No instance_id to inspect (likely failed before RunInstances)."
+    fi
     return $apply_rc
   fi
 
