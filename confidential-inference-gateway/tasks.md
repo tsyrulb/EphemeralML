@@ -192,7 +192,15 @@ This implementation plan breaks down the Confidential Inference Gateway into dis
 Goal: make the now-working KMS↔Enclave flow reproducible, observable, and operable.
 
 ### Definition of Done (DoD) / SLO
-- [ ] Define SLI/SLO: p95/p99 latency, error-rate budget, retry budget, acceptable KMS throttling rate, RTO
+- [ ] **Latency SLO (end-to-end, enclave→proxy→KMS→proxy→enclave)**
+  - GenerateDataKey: p95 ≤ **80ms**, p99 ≤ **200ms**
+  - Decrypt: p95 ≤ **60ms**, p99 ≤ **150ms**
+- [ ] **Success SLO (30d, server-side failures only)**: success ≥ **99.9%** (≤ 0.1% 5xx/timeouts/unhandled)
+  - Client/config 4xx (AccessDenied/Validation/etc.) excluded from SLO but tracked separately
+- [ ] **Throttling targets** (for alerts & tuning): steady-state throttling < **0.5%**
+  - warn ≥ **1% / 5m**, crit ≥ **5% / 5m**
+- [ ] **Deadlines/timeout budget (hard)**: overall request hard-deadline **800ms**
+- [ ] **Retry policy (hard)**: max attempts **3** (1 + 2 retries), retry only on network/5xx/throttling/timeouts; never retry permanent 4xx
 - [ ] Define “production-ready” gates: tests green + alerts configured + release/rollback procedure validated
 
 ### C) Reliability (define behavior first)
