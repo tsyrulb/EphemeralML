@@ -135,11 +135,14 @@ main() {
   run "git_clone" bash -lc "cd '$WORKDIR' && rm -rf EphemeralML && git clone -q https://github.com/tsyrulb/EphemeralML.git"
   run "repo_rev" bash -lc "cd '$REPO_ROOT' && git log -1 --oneline"
 
-  # Install Rust on host for KMS Proxy (faster than docker-in-docker here)
-  log "install_rust_on_host"
+  # Install specific stable Rust on host for KMS Proxy
+  log "install_rust_on_host (stable 1.84)"
   if ! command -v cargo >/dev/null 2>&1; then
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y >/dev/null 2>&1
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.84.0 >/dev/null 2>&1
     source "$HOME/.cargo/env"
+  else
+    source "$HOME/.cargo/env" || true
+    rustup default 1.84.0 >/dev/null 2>&1 || rustup toolchain install 1.84.0 >/dev/null 2>&1
   fi
 
   # Build KMS Proxy Host (production mode)
