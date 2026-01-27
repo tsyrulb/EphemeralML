@@ -83,11 +83,29 @@ main() {
   # ---------- quick sanity ----------
   run "uname" uname -a
 
+  # Wait for user-data bootstrap to finish (prevents dnf lock collisions)
+  log "waiting for bootstrap to finish..."
+  local b_start
+  b_start=$(date +%s)
+  while ! grep -q "bootstrap complete" /var/log/ephemeralml-hello-bootstrap.log 2>/dev/null; do
+    if (( $(date +%s) - b_start > 300 )); then
+      log "WARNING: bootstrap timed out or log missing"
+      break
+    fi
+    sleep 5
+  done
+
   # Ensure Nitro tooling exists
   log "dnf_install_nitro (quiet)"
-  sudo dnf install -y aws-nitro-enclaves-cli aws-nitro-enclaves-cli-devel >/tmp/dnf_nitro.log 2>&1
   if ! command -v nitro-cli >/dev/null 2>&1; then
-    run "nitro_cli_missing" bash -lc "echo 'ERROR: nitro-cli not found after install'; sudo dnf list installed | grep -i nitro || true; ls -la /usr/bin/nitro-cli || true"
+    sudo dnf install -y aws-nitro-enclaves-cli aws-nitro-enclaves-cli-devel >/tmp/dnf_nitro.log 2>&1 || {
+      log "ERROR: dnf install failed"
+      cat /tmp/dnf_nitro.log
+      return 41
+    }
+  fi
+  if ! command -v nitro-cli >/dev/null 2>&1; then
+    run "nitro_cli_missing" bash -lc "echo 'ERROR: nitro-cli not found after install'; sudo dnf list installed | grep -i nitro || true; which nitro-cli || true"
     return 40
   fi
 
