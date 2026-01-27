@@ -95,7 +95,54 @@ Inline-передача длинного `ssm_diag10.sh` в AWS-RunShellScript �
 - `nitro-cli describe-enclaves`
 - `nitro-cli terminate-enclave --enclave-id ...`
 
-## 6) Что смотреть в результате
+## 6) KMS proxy: как дебажить по JSON-логам (request_id/trace_id)
+
+Начиная с hardening v1, `kms_proxy_host` пишет **структурные JSON** строки в stdout.
+Их удобно фильтровать по `request_id` (сквозной id от enclave) и связывать с AWS по `kms_request_id`.
+
+### Полезные события
+- `event=kms_proxy_request`
+  - `request_id`, `trace_id`
+  - `op`: `GenerateDataKey` или `Decrypt`
+  - `recipient`: `true/false` (RecipientInfo flow)
+  - `ciphertext_len`
+- `event=kms_proxy_response`
+  - `request_id`, `trace_id`
+  - `ok`: `true/false`
+  - `error_code`: например `timeout`, `upstream_throttled`, `upstream_access_denied`
+  - `kms_request_id`: request-id AWS KMS (если был вызов)
+  - `duration_ms`
+  - `metrics`: снапшот счётчиков (retries/timeouts/throttled/rate_limited)
+
+### Типовые команды
+Фильтр по request_id:
+```bash
+grep '"request_id":"<RID>"' /var/log/ephemeralml-kms-proxy.log 2>/dev/null || true
+# если логов в файл нет, проверь journal:
+# journalctl -u kms-proxy-host -o cat | grep '"request_id":"<RID>"'
+```
+
+Показать только ошибки:
+```bash
+grep '"event":"kms_proxy_response"' /var/log/ephemeralml-kms-proxy.log | grep '"ok":false'
+```
+
+Найти все throttling:
+```bash
+grep '"error_code":"UpstreamThrottled"' /var/log/ephemeralml-kms-proxy.log
+```
+
+Сопоставить с AWS KMS по kms_request_id (для CloudTrail/Support):
+```bash
+grep '"kms_request_id"' /var/log/ephemeralml-kms-proxy.log | head
+```
+
+### Интерпретация
+- `UpstreamThrottled` + рост `metrics.rate_limited_total` → снижать RPS cap/конкурентность, смотреть квоты KMS.
+- `Timeout` + рост `metrics.retries_total` → сеть/региональная деградация, проверить дедлайны и circuit breaker.
+- `UpstreamAccessDenied` → ошибка IAM/KMS policy (это **не** ретраится).
+
+## 7) Что смотреть в результате
 
 Внутри `*.tgz`:
 - `run_basic.console.log` — консоль enclave basic
