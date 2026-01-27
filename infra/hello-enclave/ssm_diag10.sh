@@ -132,6 +132,7 @@ main() {
   HOST_SRC="$REPO_ROOT/host"
 
   run_quiet "dnf_install_git" bash -lc "sudo dnf install -y git >/dev/null 2>&1 || true"
+  run_quiet "dnf_install_build_tools" bash -lc "sudo dnf install -y gcc gcc-c++ make >/dev/null 2>&1 || true"
   run "git_clone" bash -lc "cd '$WORKDIR' && rm -rf EphemeralML && git clone -q https://github.com/tsyrulb/EphemeralML.git"
   run "repo_rev" bash -lc "cd '$REPO_ROOT' && git log -1 --oneline"
 
@@ -186,7 +187,7 @@ main() {
 
   # Start KMS Host Proxy in background
   log "starting kms_proxy_host in background"
-  sudo nohup bash -c "source $HOME/.cargo/env && $REPO_ROOT/host/target/release/kms_proxy_host" >"$OUT_BASE/kms_proxy_host.log" 2>&1 &
+  sudo nohup bash -c "source /root/.cargo/env && $REPO_ROOT/host/target/release/kms_proxy_host" >"$OUT_BASE/kms_proxy_host.log" 2>&1 &
   sleep 2
 
   log "run_kms_test_attach_console_30s"
