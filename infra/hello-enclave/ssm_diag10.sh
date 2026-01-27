@@ -12,6 +12,10 @@ set -euo pipefail
 
 # NOTE: OUT_BASE is initialized inside main() so it works even when wrapped by `timeout bash -lc ...`.
 
+# Default OUT_BASE so helper functions can log even before main() initializes the final output dir.
+OUT_BASE="/tmp/hello-enclave-diag10-pre"
+mkdir -p "$OUT_BASE" || true
+
 log() { echo "[diag10 $(date -u +%H:%M:%S)] $*"; }
 
 # Ensure we don't hang forever. Whole script hard-limited to ~175s.
