@@ -108,13 +108,13 @@ PY
   done
 
   log "ssm send-command (timeout=${SSM_TIMEOUT_SECS}s, payload=$tmp_json)"
-  local resp cmd_id
-  resp="$(aws "${AWS_PROFILE_OPT[@]}" ssm send-command \
+  local cmd_id
+  cmd_id="$(aws "${AWS_PROFILE_OPT[@]}" ssm send-command \
     --region "$REGION" \
     --cli-input-json "file://$tmp_json" \
-    --output json)"
-
-  cmd_id="$(echo "$resp" | python3 -c 'import json, sys; print(json.load(sys.stdin)["Command"]["CommandId"])')"
+    --query 'Command.CommandId' \
+    --output text)"
+  
   log "command_id=$cmd_id"
 
   # Wait for completion (poll), but do not exceed cycle timeout.
@@ -128,36 +128,28 @@ PY
       break
     fi
 
-    local inv_file
-    inv_file="$(mktemp -t ssm-inv-XXXXXX.json)"
-    aws "${AWS_PROFILE_OPT[@]}" ssm list-command-invocations --region "$REGION" --command-id "$cmd_id" --details --output json > "$inv_file" 2>/dev/null || true
-    
     local status
-    status="$(python3 -c 'import json, sys; j=json.load(sys.stdin); print(j["CommandInvocations"][0]["Status"] if j.get("CommandInvocations") else "UNKNOWN")' < "$inv_file")"
+    status="$(aws "${AWS_PROFILE_OPT[@]}" ssm list-command-invocations --region "$REGION" --command-id "$cmd_id" --details --query 'CommandInvocations[0].Status' --output text 2>/dev/null || echo "UNKNOWN")"
 
     log "ssm_status=$status"
 
     if [[ "$status" == "Success" || "$status" == "Cancelled" || "$status" == "TimedOut" || "$status" == "Failed" ]]; then
-      # Print a short tail of stdout/stderr for quick triage
-      python3 - <<'PY' < "$inv_file"
-import json, sys
-try:
-    j=json.load(sys.stdin)
-    if not j.get('CommandInvocations'):
-        sys.exit(0)
-    ci=j['CommandInvocations'][0]
-    plugins=ci.get('CommandPlugins') or []
-    for p in plugins:
-        out=(p.get('Output') or '')
-        print(f"\n--- plugin: {p.get('Name')} status: {p.get('Status')}")
-        print(out[-3000:])
-except Exception as e:
-    print(f"Error parsing inv_file: {e}")
-PY
-      rm -f "$inv_file"
+      log "fetching final output..."
+      aws "${AWS_PROFILE_OPT[@]}" ssm get-command-invocation \
+        --region "$REGION" \
+        --command-id "$cmd_id" \
+        --instance-id "$INSTANCE_ID" \
+        --query 'StandardOutputContent' \
+        --output text > "/tmp/ssm_final_out.log" 2>/dev/null || true
+      
+      # Print last 50 lines of the actual diagnostic output
+      if [[ -f "/tmp/ssm_final_out.log" ]]; then
+        tail -n 100 "/tmp/ssm_final_out.log"
+      else
+        echo "ERROR: could not fetch command output"
+      fi
       break
     fi
-    rm -f "$inv_file"
 
     sleep 5
   done

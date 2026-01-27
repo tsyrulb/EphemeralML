@@ -85,7 +85,7 @@ main() {
 
   # Ensure Nitro tooling exists
   log "dnf_install_nitro (quiet)"
-  sudo dnf install -y aws-nitro-enclaves-cli aws-nitro-enclaves-cli-devel >/dev/null 2>&1
+  sudo dnf install -y aws-nitro-enclaves-cli aws-nitro-enclaves-cli-devel >/tmp/dnf_nitro.log 2>&1
   if ! command -v nitro-cli >/dev/null 2>&1; then
     run "nitro_cli_missing" bash -lc "echo 'ERROR: nitro-cli not found after install'; sudo dnf list installed | grep -i nitro || true; ls -la /usr/bin/nitro-cli || true"
     return 40
@@ -119,9 +119,9 @@ main() {
   # Build two docker tags from the same Dockerfile.
   # Important: We MUST set ENTRYPOINT explicitly. Mode is selected via build-arg -> ENV.
   log "docker_build_vsock (quiet)"
-  sudo docker build --build-arg MODE=vsock -t ephemeralml/vsock-pingpong:diag10-vsock "$REPO" >/dev/null 2>&1
+  sudo docker build --build-arg MODE=vsock -t ephemeralml/vsock-pingpong:diag10-vsock "$REPO" >/tmp/docker_build_vsock.log 2>&1
   log "docker_build_basic (quiet)"
-  sudo docker build --build-arg MODE=basic -t ephemeralml/vsock-pingpong:diag10-basic "$REPO" >/dev/null 2>&1
+  sudo docker build --build-arg MODE=basic -t ephemeralml/vsock-pingpong:diag10-basic "$REPO" >/tmp/docker_build_basic.log 2>&1
 
   # Inspect Entrypoint/Cmd (these are key for Nitro init semantics)
   run "docker_inspect_vsock" bash -lc "sudo docker inspect ephemeralml/vsock-pingpong:diag10-vsock | grep -A 5 -E '\"Entrypoint\"|\"Cmd\"'"
@@ -129,16 +129,16 @@ main() {
 
   # Build EIFs
   log "build_eif_vsock (quiet)"
-  sudo nitro-cli build-enclave --docker-uri ephemeralml/vsock-pingpong:diag10-vsock --output-file "$OUT_BASE/vsock-pingpong-vsock.eif" >/dev/null 2>&1
+  sudo nitro-cli build-enclave --docker-uri ephemeralml/vsock-pingpong:diag10-vsock --output-file "$OUT_BASE/vsock-pingpong-vsock.eif" >/tmp/build_eif_vsock.log 2>&1
   log "build_eif_basic (quiet)"
-  sudo nitro-cli build-enclave --docker-uri ephemeralml/vsock-pingpong:diag10-basic --output-file "$OUT_BASE/vsock-pingpong-basic.eif" >/dev/null 2>&1
+  sudo nitro-cli build-enclave --docker-uri ephemeralml/vsock-pingpong:diag10-basic --output-file "$OUT_BASE/vsock-pingpong-basic.eif" >/tmp/build_eif_basic.log 2>&1
 
   # Smoke-test EIF (ultra-minimal) — should always stay alive and print to console.
   log "docker_build_smoke (quiet)"
-  sudo docker build -t ephemeralml/busybox-smoke:diag10 "$SMOKE_REPO" >/dev/null 2>&1
+  sudo docker build -t ephemeralml/busybox-smoke:diag10 "$SMOKE_REPO" >/tmp/docker_build_smoke.log 2>&1
   run "docker_inspect_smoke" bash -lc "sudo docker inspect ephemeralml/busybox-smoke:diag10 | grep -A 5 -E '\"Entrypoint\"|\"Cmd\"'"
   log "build_eif_smoke (quiet)"
-  sudo nitro-cli build-enclave --docker-uri ephemeralml/busybox-smoke:diag10 --output-file "$OUT_BASE/busybox-smoke.eif" >/dev/null 2>&1
+  sudo nitro-cli build-enclave --docker-uri ephemeralml/busybox-smoke:diag10 --output-file "$OUT_BASE/busybox-smoke.eif" >/tmp/build_eif_smoke.log 2>&1
 
   run "ls_eifs" bash -lc "ls -lh '$OUT_BASE'/*.eif"
 
@@ -212,6 +212,13 @@ main() {
 
   # Pack results for easy retrieval
   run "tar_results" bash -lc "tar -C '$OUT_BASE' -czf '${OUT_BASE}.tgz' . && ls -lh '${OUT_BASE}.tgz'"
+
+  echo "--- SMOKE CONSOLE ---"
+  tail -n 20 "$OUT_BASE/run_smoke.console.log" || true
+  echo "--- BASIC CONSOLE ---"
+  tail -n 20 "$OUT_BASE/run_basic.console.log" || true
+  echo "--- VSOCK CONSOLE ---"
+  tail -n 20 "$OUT_BASE/run_vsock.console.log" || true
 
   log "DONE (results: ${OUT_BASE}.tgz)"
 }
