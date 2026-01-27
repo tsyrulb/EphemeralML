@@ -8,7 +8,33 @@
 # Intended to be executed on the EC2 parent via AWS SSM (aws ssm send-command).
 # Keep runtime ~<= 3 minutes.
 
-set -euo pipefail
+set -Eeuo pipefail
+shopt -s inherit_errexit 2>/dev/null || true
+
+# Fail-fast diagnostics on any error
+on_err() {
+  local rc=$?
+  log "ERROR rc=$rc line=$LINENO cmd=$BASH_COMMAND"
+  {
+    echo "--- whoami/id/pwd ---"; whoami; id; pwd
+    echo "--- df -h ---"; df -h || true
+    echo "--- free -h ---"; free -h || true
+    echo "--- ulimit -a ---"; ulimit -a || true
+    echo "--- docker ps -a ---"; sudo docker ps -a --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}' || true
+    echo "--- docker system df ---"; sudo docker system df || true
+    echo "--- docker journal (tail) ---"; sudo journalctl -u docker --no-pager -n 200 || true
+    echo "--- allocator journal (tail) ---"; sudo journalctl -u nitro-enclaves-allocator.service --no-pager -n 200 || true
+    echo "--- nitro_cli describe ---"; sudo nitro-cli describe-enclaves || true
+    echo "--- dmesg tail ---"; sudo dmesg -T | tail -n 220 || true
+  } >>"$OUT_BASE/ERR_TRAP.log" 2>&1 || true
+  collect_logs || true
+  exit $rc
+}
+trap on_err ERR
+
+# Tee full script output to a log file (SSM keeps stdout too)
+exec > >(tee -a "$OUT_BASE/ssm_diag10.full.log") 2>&1
+
 
 # NOTE: OUT_BASE is initialized inside main() so it works even when wrapped by `timeout bash -lc ...`.
 
@@ -19,7 +45,7 @@ mkdir -p "$OUT_BASE" || true
 log() { echo "[diag10 $(date -u +%H:%M:%S)] $*"; }
 
 # Ensure we don't hang forever. Whole script hard-limited to ~175s.
-HARD_TIMEOUT_SECS=175
+HARD_TIMEOUT_SECS=700
 
 run() {
   local name="$1"; shift
@@ -155,7 +181,18 @@ main() {
   ( export CARGO_HOME="/root/.cargo"; export RUSTUP_HOME="/root/.rustup"; source "/root/.cargo/env"; cd "$HOST_SRC" && /root/.cargo/bin/cargo build --release --bin kms_proxy_host --features production ) >/tmp/build_kms_host.log 2>&1 || {
     log "ERROR: build_kms_proxy_host failed"
     cat /tmp/build_kms_host.log
+    exit 51
   }
+
+  # Verify host binary exists and is runnable; locate it if target dir differs.
+  if [[ ! -x "$REPO_ROOT/host/target/release/kms_proxy_host" ]]; then
+    log "ERROR: kms_proxy_host missing at expected path; searching..."
+    find "$REPO_ROOT/host" -maxdepth 6 -type f -name kms_proxy_host -ls >"$OUT_BASE/find_kms_proxy_host.txt" 2>&1 || true
+    cat "$OUT_BASE/find_kms_proxy_host.txt" || true
+    exit 52
+  fi
+  ( file "$REPO_ROOT/host/target/release/kms_proxy_host" || true ) >"$OUT_BASE/kms_proxy_host.file.txt" 2>&1
+  ( ldd "$REPO_ROOT/host/target/release/kms_proxy_host" || true ) >"$OUT_BASE/kms_proxy_host.ldd.txt" 2>&1
 
   # Build docker tags from the same Dockerfile.
   # Important: We MUST set ENTRYPOINT explicitly. Mode is selected via build-arg -> ENV.
@@ -169,14 +206,17 @@ main() {
   # Build EIFs
   log "build_eif_attestation (quiet)"
   sudo nitro-cli build-enclave --docker-uri ephemeralml/vsock-pingpong:diag10-attestation --output-file "$OUT_BASE/vsock-pingpong-attestation.eif" >/tmp/build_eif_attestation.log 2>&1
+  test -s "$OUT_BASE/vsock-pingpong-attestation.eif" || { log "ERROR: attestation EIF missing/empty"; tail -n 200 /tmp/build_eif_attestation.log || true; exit 61; }
   log "build_eif_kms (quiet)"
   sudo nitro-cli build-enclave --docker-uri ephemeralml/vsock-pingpong:diag10-kms --output-file "$OUT_BASE/vsock-pingpong-kms.eif" >/tmp/build_eif_kms.log 2>&1
+  test -s "$OUT_BASE/vsock-pingpong-kms.eif" || { log "ERROR: kms EIF missing/empty"; tail -n 200 /tmp/build_eif_kms.log || true; exit 62; }
 
   # Smoke-test EIF (ultra-minimal) — should always stay alive and print to console.
   log "docker_build_smoke (quiet)"
   sudo docker build -t ephemeralml/busybox-smoke:diag10 "$SMOKE_REPO" >/tmp/docker_build_smoke.log 2>&1
   log "build_eif_smoke (quiet)"
   sudo nitro-cli build-enclave --docker-uri ephemeralml/busybox-smoke:diag10 --output-file "$OUT_BASE/busybox-smoke.eif" >/tmp/build_eif_smoke.log 2>&1
+  test -s "$OUT_BASE/busybox-smoke.eif" || { log "ERROR: smoke EIF missing/empty"; tail -n 200 /tmp/build_eif_smoke.log || true; exit 63; }
 
   run "ls_eifs" bash -lc "ls -lh '$OUT_BASE'/*.eif"
 
@@ -194,8 +234,9 @@ main() {
     -v "$REPO_ROOT/infra/hello-enclave/otelcol-logging.yaml:/etc/otelcol/config.yaml:ro" \
     otel/opentelemetry-collector:latest \
     --config=/etc/otelcol/config.yaml \
-    >"$OUT_BASE/otelcol.start.log" 2>&1 || true
-  sudo docker logs --tail 50 otelcol >"$OUT_BASE/otelcol.log.tail" 2>&1 || true
+    >"$OUT_BASE/otelcol.start.log" 2>&1
+  sudo docker ps -a --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}' >"$OUT_BASE/docker_ps_a.after_otelcol.txt" 2>&1 || true
+  sudo docker logs --tail 120 otelcol >"$OUT_BASE/otelcol.log.tail" 2>&1 || true
 
   # Start KMS Host Proxy in background (with OTel)
   log "starting kms_proxy_host in background"
