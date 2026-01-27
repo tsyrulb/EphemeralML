@@ -10,9 +10,7 @@
 
 set -euo pipefail
 
-TS="$(date -u +%Y%m%dT%H%M%SZ)"
-OUT_BASE="/tmp/hello-enclave-diag10-${TS}"
-mkdir -p "$OUT_BASE"
+# NOTE: OUT_BASE is initialized inside main() so it works even when wrapped by `timeout bash -lc ...`.
 
 log() { echo "[diag10 $(date -u +%H:%M:%S)] $*"; }
 
@@ -72,11 +70,28 @@ collect_logs() {
 }
 
 main() {
+  TS="$(date -u +%Y%m%dT%H%M%SZ)"
+  OUT_BASE="/tmp/hello-enclave-diag10-${TS}"
+  mkdir -p "$OUT_BASE"
+
   log "OUT_BASE=$OUT_BASE"
 
   # ---------- quick sanity ----------
   run "uname" uname -a
+
+  # Ensure Nitro tooling exists
+  run_quiet "dnf_install_nitro" bash -lc "sudo dnf install -y aws-nitro-enclaves-cli aws-nitro-enclaves-cli-devel aws-nitro-enclaves-allocator >/dev/null 2>&1 || true"
+  if ! command -v nitro-cli >/dev/null 2>&1; then
+    # surface useful info in logs
+    run "nitro_cli_missing" bash -lc "echo 'ERROR: nitro-cli not found after install'; sudo dnf list installed | grep -i nitro || true; ls -la /usr/bin/nitro-cli || true"
+    return 40
+  fi
+
   run "nitro_cli_version" sudo nitro-cli --version
+
+  run_quiet "enable_allocator" bash -lc "sudo systemctl enable --now nitro-enclaves-allocator.service >/dev/null 2>&1 || true"
+  run_quiet "enable_vsock_proxy" bash -lc "sudo systemctl enable --now nitro-enclaves-vsock-proxy.service >/dev/null 2>&1 || true"
+
   run "docker_version" sudo docker --version
 
   # Clean slate
@@ -182,4 +197,5 @@ EOF
 }
 
 # Hard timeout wrapper
-run "diag10_wrapper" timeout "$HARD_TIMEOUT_SECS" bash -lc "$(declare -f log run run_quiet cleanup_enclaves collect_logs main); main"
+# Run inside a fresh shell so we can `timeout` everything, but keep OUT_BASE initialization inside main().
+run "diag10_wrapper" timeout "$HARD_TIMEOUT_SECS" bash -lc "$(declare -f log run run_quiet cleanup_enclaves collect_logs main); main" || true
