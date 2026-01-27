@@ -88,6 +88,25 @@ with open(out_path, "w", encoding="utf-8") as f:
   json.dump(payload, f)
 PY
 
+  # Wait for SSM agent registration (instance becomes a Managed Instance).
+  log "wait for SSM registration"
+  local wait_start
+  wait_start=$(date +%s)
+  while true; do
+    if aws "${AWS_PROFILE_OPT[@]}" ssm describe-instance-information \
+      --region "$REGION" \
+      --filters "Key=InstanceIds,Values=$INSTANCE_ID" \
+      --query 'InstanceInformationList[0].PingStatus' \
+      --output text 2>/dev/null | grep -qE 'Online|ConnectionLost|Inactive'; then
+      break
+    fi
+    if (( $(date +%s) - wait_start > 180 )); then
+      log "ERROR: instance did not register with SSM within 180s"
+      return 3
+    fi
+    sleep 5
+  done
+
   log "ssm send-command (timeout=${SSM_TIMEOUT_SECS}s, payload=$tmp_json)"
   local resp cmd_id
   resp="$(aws "${AWS_PROFILE_OPT[@]}" ssm send-command \
