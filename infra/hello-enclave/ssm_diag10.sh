@@ -145,7 +145,7 @@ main() {
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --no-modify-path >/dev/null 2>&1
   fi
   source "/root/.cargo/env" || true
-  /root/.cargo/bin/rustup toolchain install stable -q || true
+  /root/.cargo/bin/rustup toolchain install stable >/dev/null 2>&1 || true
   /root/.cargo/bin/rustup default stable || true
   /root/.cargo/bin/rustc --version || true
   /root/.cargo/bin/cargo --version || true
