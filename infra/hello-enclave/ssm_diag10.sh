@@ -131,7 +131,8 @@ main() {
   cat >"$OUT_BASE/Dockerfile.basic" <<'EOF'
 FROM ephemeralml/vsock-pingpong:diag10-vsock
 # Same rationale: ensure CMD is the full argv (ENTRYPOINT may be ignored).
-CMD ["/vsock-pingpong","--mode","basic"]
+# Use /init so PID1 stays alive and logs to /dev/console even if the app exits.
+CMD ["/init","--mode","basic"]
 EOF
   run_quiet "docker_build_basic" bash -lc "cd '$OUT_BASE' && sudo docker build -t ephemeralml/vsock-pingpong:diag10-basic -f Dockerfile.basic ."
 
