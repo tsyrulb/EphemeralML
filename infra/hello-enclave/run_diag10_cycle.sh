@@ -42,7 +42,12 @@ main() {
   log "terraform init"
   terraform init -input=false >/dev/null
 
-  log "terraform apply (AZ=${AZ}, type=${INSTANCE_TYPE})"
+  if [[ -z "${AZ}" || -z "${INSTANCE_TYPE}" || -z "${REGION}" ]]; then
+    log "ERROR: missing required config (REGION/AZ/INSTANCE_TYPE). REGION='${REGION}' AZ='${AZ}' INSTANCE_TYPE='${INSTANCE_TYPE}'"
+    return 2
+  fi
+
+  log "terraform apply (REGION=${REGION}, AZ=${AZ}, type=${INSTANCE_TYPE})"
   terraform apply -auto-approve -lock-timeout=60s -var "availability_zone=${AZ}" -var "instance_type=${INSTANCE_TYPE}"
 
   # Try to extract instance id from outputs first; fall back to state.
@@ -135,12 +140,11 @@ PY
   log "SSM diag finished (or timed out). Destroy will run via trap."
 }
 
-# Hard limit wrapper around the entire cycle.
-log "starting cycle (hard limit ${CYCLE_TIMEOUT_SECS}s)"
-if command -v timeout >/dev/null 2>&1; then
-  timeout "$CYCLE_TIMEOUT_SECS" bash -lc "$(declare -f log destroy cleanup main); main"
-else
-  main
-fi
+log "starting cycle (CYCLE_TIMEOUT_SECS=${CYCLE_TIMEOUT_SECS}, REGION=${REGION}, AZ=${AZ}, INSTANCE_TYPE=${INSTANCE_TYPE})"
 
-log "done"
+# NOTE: We intentionally do NOT re-exec via `bash -lc` here, because that drops
+# our variable defaults/guardrails. If you want a hard wall-clock limit, run:
+#   timeout 600 ./run_diag10_cycle.sh
+main
+
+log "done (destroy executed via trap)"
