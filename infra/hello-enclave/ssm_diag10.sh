@@ -129,35 +129,37 @@ main() {
   REPO_ROOT="$WORKDIR/EphemeralML"
   REPO="$REPO_ROOT/enclaves/vsock-pingpong"
   SMOKE_REPO="$REPO_ROOT/enclaves/busybox-smoke"
+  HOST_SRC="$REPO_ROOT/host"
 
   run_quiet "dnf_install_git" bash -lc "sudo dnf install -y git >/dev/null 2>&1 || true"
   run "git_clone" bash -lc "cd '$WORKDIR' && rm -rf EphemeralML && git clone -q https://github.com/tsyrulb/EphemeralML.git"
   run "repo_rev" bash -lc "cd '$REPO_ROOT' && git log -1 --oneline"
 
-  # Build three docker tags from the same Dockerfile.
+  # Build KMS Proxy Host (production mode)
+  log "build_kms_proxy_host (quiet)"
+  ( cd "$HOST_SRC" && cargo build --release --bin kms_proxy_host --features production ) >/tmp/build_kms_host.log 2>&1 || {
+    log "ERROR: build_kms_proxy_host failed"
+    cat /tmp/build_kms_host.log
+  }
+
+  # Build docker tags from the same Dockerfile.
   # Important: We MUST set ENTRYPOINT explicitly. Mode is selected via build-arg -> ENV.
   log "docker_build_vsock (quiet)"
   sudo docker build --build-arg MODE=vsock -t ephemeralml/vsock-pingpong:diag10-vsock "$REPO" >/tmp/docker_build_vsock.log 2>&1
-  log "docker_build_basic (quiet)"
-  sudo docker build --build-arg MODE=basic -t ephemeralml/vsock-pingpong:diag10-basic "$REPO" >/tmp/docker_build_basic.log 2>&1
   log "docker_build_attestation (quiet)"
   sudo docker build --build-arg MODE=attestation -t ephemeralml/vsock-pingpong:diag10-attestation "$REPO" >/tmp/docker_build_attestation.log 2>&1
-
-  # Inspect Entrypoint/Cmd (these are key for Nitro init semantics)
-  run "docker_inspect_vsock" bash -lc "sudo docker inspect ephemeralml/vsock-pingpong:diag10-vsock | grep -A 5 -E '\"Entrypoint\"|\"Cmd\"'"
+  log "docker_build_kms (quiet)"
+  sudo docker build --build-arg MODE=kms -t ephemeralml/vsock-pingpong:diag10-kms "$REPO" >/tmp/docker_build_kms.log 2>&1
 
   # Build EIFs
-  log "build_eif_vsock (quiet)"
-  sudo nitro-cli build-enclave --docker-uri ephemeralml/vsock-pingpong:diag10-vsock --output-file "$OUT_BASE/vsock-pingpong-vsock.eif" >/tmp/build_eif_vsock.log 2>&1
-  log "build_eif_basic (quiet)"
-  sudo nitro-cli build-enclave --docker-uri ephemeralml/vsock-pingpong:diag10-basic --output-file "$OUT_BASE/vsock-pingpong-basic.eif" >/tmp/build_eif_basic.log 2>&1
   log "build_eif_attestation (quiet)"
   sudo nitro-cli build-enclave --docker-uri ephemeralml/vsock-pingpong:diag10-attestation --output-file "$OUT_BASE/vsock-pingpong-attestation.eif" >/tmp/build_eif_attestation.log 2>&1
+  log "build_eif_kms (quiet)"
+  sudo nitro-cli build-enclave --docker-uri ephemeralml/vsock-pingpong:diag10-kms --output-file "$OUT_BASE/vsock-pingpong-kms.eif" >/tmp/build_eif_kms.log 2>&1
 
   # Smoke-test EIF (ultra-minimal) — should always stay alive and print to console.
   log "docker_build_smoke (quiet)"
   sudo docker build -t ephemeralml/busybox-smoke:diag10 "$SMOKE_REPO" >/tmp/docker_build_smoke.log 2>&1
-  run "docker_inspect_smoke" bash -lc "sudo docker inspect ephemeralml/busybox-smoke:diag10 | grep -A 5 -E '\"Entrypoint\"|\"Cmd\"'"
   log "build_eif_smoke (quiet)"
   sudo nitro-cli build-enclave --docker-uri ephemeralml/busybox-smoke:diag10 --output-file "$OUT_BASE/busybox-smoke.eif" >/tmp/build_eif_smoke.log 2>&1
 
@@ -165,21 +167,22 @@ main() {
 
   # ---------- run EIFs sequentially ----------
   # Use distinct CIDs to avoid collisions
-  # Keep attach-console short; if enclave reboots immediately we still capture it.
 
   cleanup_enclaves
 
-  log "run_smoke_attach_console_12s"
-  set +e
-  sudo timeout 12 nitro-cli run-enclave \
-    --eif-path "$OUT_BASE/busybox-smoke.eif" \
-    --cpu-count 2 --memory 1024 --enclave-cid 15 --debug-mode --attach-console \
-    >"$OUT_BASE/run_smoke.console.log" 2>&1
-  echo "run_smoke_rc=$?" >> "$OUT_BASE/run_smoke.console.log"
-  set -e
+  # Start KMS Host Proxy in background
+  log "starting kms_proxy_host in background"
+  sudo nohup "$HOST_SRC/target/release/kms_proxy_host" >"$OUT_BASE/kms_proxy_host.log" 2>&1 &
+  sleep 2
 
-  sleep 1
-  sudo nitro-cli describe-enclaves >"$OUT_BASE/describe_after_smoke.json" 2>/dev/null || true
+  log "run_kms_test_attach_console_30s"
+  set +e
+  sudo timeout 30 nitro-cli run-enclave \
+    --eif-path "$OUT_BASE/vsock-pingpong-kms.eif" \
+    --cpu-count 2 --memory 1024 --enclave-cid 16 --debug-mode --attach-console \
+    >"$OUT_BASE/run_kms_test.console.log" 2>&1
+  echo "run_kms_test_rc=$?" >> "$OUT_BASE/run_kms_test.console.log"
+  set -e
 
   cleanup_enclaves
 
@@ -224,6 +227,10 @@ main() {
 
   echo "--- SMOKE CONSOLE (tail 50) ---"
   tail -n 50 "$OUT_BASE/run_smoke.console.log" || true
+  echo "--- KMS TEST CONSOLE (tail 100) ---"
+  tail -n 100 "$OUT_BASE/run_kms_test.console.log" || true
+  echo "--- KMS PROXY LOG (tail 50) ---"
+  tail -n 50 "$OUT_BASE/kms_proxy_host.log" || true
   echo "--- ATTESTATION CONSOLE (tail 100) ---"
   tail -n 100 "$OUT_BASE/run_attestation.console.log" || true
   echo "--- HELLO CONSOLE (tail 50) ---"
