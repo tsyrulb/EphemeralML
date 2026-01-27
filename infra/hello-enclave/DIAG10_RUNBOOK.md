@@ -67,7 +67,35 @@ cd projects/EphemeralML/infra/hello-enclave
 terraform destroy -auto-approve
 ```
 
-## 5) Что смотреть в результате
+## 5) Частые грабли (из реальной отладки, 2026-01-27)
+
+### Nitro CLI artifacts (E51)
+Если `nitro-cli build-enclave` падает с `E51 Artifacts path environment variable not set`, нужно задать:
+- `HOME=/root` **или**
+- `NITRO_CLI_ARTIFACTS=/tmp/nitro-cli-artifacts` (и создать директорию).
+
+### Amazon Linux 2023: пакета `aws-nitro-enclaves-allocator` нет
+На AL2023 ставить:
+- `aws-nitro-enclaves-cli`
+- `aws-nitro-enclaves-cli-devel`
+(allocator/vsock-proxy сервисы приходят внутри этих пакетов).
+
+### Rust сборка на хосте
+Для сборки `kms_proxy_host` нужны:
+- `gcc gcc-c++ make` (иначе будет `linker cc not found`).
+- при `set -u` обязательно `export HOME=/root` перед `source /root/.cargo/env`.
+
+### SSM size limits
+Inline-передача длинного `ssm_diag10.sh` в AWS-RunShellScript может молча обрезаться.
+Решение: отправлять скрипт base64 чанками, собирать на инстансе в файл и запускать.
+
+### CPU pool exhaustion
+Если видишь ошибки вида "no CPUs available in pool" / E29/E39 при `run-enclave` —
+значит старый enclave не был terminated. Перед новым запуском:
+- `nitro-cli describe-enclaves`
+- `nitro-cli terminate-enclave --enclave-id ...`
+
+## 6) Что смотреть в результате
 
 Внутри `*.tgz`:
 - `run_basic.console.log` — консоль enclave basic
