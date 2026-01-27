@@ -185,9 +185,21 @@ main() {
 
   cleanup_enclaves
 
-  # Start KMS Host Proxy in background
+  # Start OpenTelemetry Collector (logging exporter) for demo traces.
+  # The host binary sends OTLP to localhost:4317.
+  log "starting otel collector (logging)"
+  sudo docker rm -f otelcol >/dev/null 2>&1 || true
+  sudo docker run -d --name otelcol \
+    -p 4317:4317 -p 4318:4318 \
+    -v "$REPO_ROOT/infra/hello-enclave/otelcol-logging.yaml:/etc/otelcol/config.yaml:ro" \
+    otel/opentelemetry-collector:latest \
+    --config=/etc/otelcol/config.yaml \
+    >"$OUT_BASE/otelcol.start.log" 2>&1 || true
+  sudo docker logs --tail 50 otelcol >"$OUT_BASE/otelcol.log.tail" 2>&1 || true
+
+  # Start KMS Host Proxy in background (with OTel)
   log "starting kms_proxy_host in background"
-  sudo nohup bash -c "source /root/.cargo/env && $REPO_ROOT/host/target/release/kms_proxy_host" >"$OUT_BASE/kms_proxy_host.log" 2>&1 &
+  sudo nohup bash -c "source /root/.cargo/env && export OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4317 && export OTEL_SERVICE_NAME=ephemeralml-kms-proxy-host && $REPO_ROOT/host/target/release/kms_proxy_host" >"$OUT_BASE/kms_proxy_host.log" 2>&1 &
   sleep 2
 
   log "run_kms_test_attach_console_30s"
