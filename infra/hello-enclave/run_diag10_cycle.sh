@@ -65,23 +65,34 @@ main() {
 
   log "instance_id=$INSTANCE_ID"
 
-  # Send diag10 script via SSM (inline).
-  local diag10
-  diag10="$(python3 - <<'PY'
-import pathlib
-print(pathlib.Path('ssm_diag10.sh').read_text())
-PY
-)"
+  # Send diag10 script via SSM (inline), robustly (JSON file) so quoting/newlines can't break.
+  local tmp_json
+  tmp_json="$(mktemp -t diag10-sendcmd-XXXXXX.json)"
 
-  log "ssm send-command (timeout=${SSM_TIMEOUT_SECS}s)"
+  INSTANCE_ID="$INSTANCE_ID" SSM_TIMEOUT_SECS="$SSM_TIMEOUT_SECS" python3 - "$tmp_json" <<'PY'
+import json, os, pathlib, sys
+out_path = sys.argv[1]
+instance_id = os.environ["INSTANCE_ID"]
+timeout = int(os.environ.get("SSM_TIMEOUT_SECS", "220"))
+script = pathlib.Path("ssm_diag10.sh").read_text()
+
+payload = {
+  "DocumentName": "AWS-RunShellScript",
+  "Comment": "EphemeralML diag10 cycle",
+  "InstanceIds": [instance_id],
+  "TimeoutSeconds": timeout,
+  "Parameters": {"commands": [script]},
+}
+
+with open(out_path, "w", encoding="utf-8") as f:
+  json.dump(payload, f)
+PY
+
+  log "ssm send-command (timeout=${SSM_TIMEOUT_SECS}s, payload=$tmp_json)"
   local resp cmd_id
   resp="$(aws "${AWS_PROFILE_OPT[@]}" ssm send-command \
     --region "$REGION" \
-    --document-name "AWS-RunShellScript" \
-    --comment "EphemeralML diag10 cycle" \
-    --instance-ids "$INSTANCE_ID" \
-    --parameters commands="$diag10" \
-    --timeout-seconds "$SSM_TIMEOUT_SECS" \
+    --cli-input-json "file://$tmp_json" \
     --output json)"
 
   cmd_id="$(python3 - <<PY
