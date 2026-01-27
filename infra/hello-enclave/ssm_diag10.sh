@@ -125,11 +125,38 @@ main() {
   # Ensure Nitro tooling exists (AL2023 uses dnf, AL2 uses yum)
   if command -v dnf >/dev/null 2>&1; then
     PKG_INSTALL=(sudo dnf install -y)
+    PKG_LOCK_FILE="/var/run/dnf.pid"
   else
     PKG_INSTALL=(sudo yum install -y)
+    PKG_LOCK_FILE="/var/run/yum.pid"
   fi
 
+  wait_pkg_lock() {
+    local timeout_secs="${1:-600}"
+    local start
+    start=$(date +%s)
+    while true; do
+      # If lock file exists and process is alive, wait.
+      if [[ -f "$PKG_LOCK_FILE" ]]; then
+        local pid
+        pid=$(cat "$PKG_LOCK_FILE" 2>/dev/null || true)
+        if [[ -n "$pid" ]] && ps -p "$pid" >/dev/null 2>&1; then
+          log "package manager lock held (pid=$pid); waiting..."
+          if (( $(date +%s) - start > timeout_secs )); then
+            log "ERROR: package manager lock not released within ${timeout_secs}s"
+            ps -fp "$pid" || true
+            return 91
+          fi
+          sleep 10
+          continue
+        fi
+      fi
+      break
+    done
+  }
+
   log "install_nitro_packages (quiet)"
+  wait_pkg_lock 600 || return $?
   if ! command -v nitro-cli >/dev/null 2>&1; then
     "${PKG_INSTALL[@]}" aws-nitro-enclaves-cli aws-nitro-enclaves-cli-devel >/tmp/pkg_nitro.log 2>&1 || {
       log "ERROR: package install failed"
@@ -175,6 +202,7 @@ main() {
   log "HOST_SRC=$HOST_SRC"
 
   # Tools needed for cloning/building (AL2 uses yum; AL2023 uses dnf)
+  wait_pkg_lock 600 || exit $?
   run_quiet "install_git" bash -lc "${PKG_INSTALL[*]} git >/dev/null 2>&1 || true"
   run_quiet "install_build_tools" bash -lc "${PKG_INSTALL[*]} gcc gcc-c++ make >/dev/null 2>&1 || true"
   run_quiet "install_curl" bash -lc "${PKG_INSTALL[*]} curl >/dev/null 2>&1 || true"
