@@ -171,8 +171,8 @@ main() {
   sudo timeout 12 nitro-cli run-enclave \
     --eif-path "$OUT_BASE/busybox-smoke.eif" \
     --cpu-count 2 --memory 1024 --enclave-cid 15 --debug-mode --attach-console \
-    2>&1 | tee -a "$OUT_BASE/run_smoke.console.log"
-  echo "run_smoke_rc=$?" | tee -a "$OUT_BASE/run_smoke.console.log"
+    >"$OUT_BASE/run_smoke.console.log" 2>&1
+  echo "run_smoke_rc=$?" >> "$OUT_BASE/run_smoke.console.log"
   set -e
 
   sleep 1
@@ -185,8 +185,8 @@ main() {
   sudo timeout 20 nitro-cli run-enclave \
     --eif-path "$OUT_BASE/vsock-pingpong-basic.eif" \
     --cpu-count 2 --memory 1024 --enclave-cid 16 --debug-mode --attach-console \
-    2>&1 | tee -a "$OUT_BASE/run_basic.console.log"
-  echo "run_basic_rc=$?" | tee -a "$OUT_BASE/run_basic.console.log"
+    >"$OUT_BASE/run_basic.console.log" 2>&1
+  echo "run_basic_rc=$?" >> "$OUT_BASE/run_basic.console.log"
   set -e
 
   sleep 1
@@ -199,8 +199,8 @@ main() {
   sudo timeout 20 nitro-cli run-enclave \
     --eif-path "$OUT_BASE/vsock-pingpong-vsock.eif" \
     --cpu-count 2 --memory 1024 --enclave-cid 17 --debug-mode --attach-console \
-    2>&1 | tee -a "$OUT_BASE/run_vsock.console.log"
-  echo "run_vsock_rc=$?" | tee -a "$OUT_BASE/run_vsock.console.log"
+    >"$OUT_BASE/run_vsock.console.log" 2>&1
+  echo "run_vsock_rc=$?" >> "$OUT_BASE/run_vsock.console.log"
   set -e
 
   sleep 1
@@ -218,8 +218,8 @@ main() {
   sudo timeout 15 nitro-cli run-enclave \
     --eif-path "$OUT_BASE/hello.eif" \
     --cpu-count 2 --memory 1024 --enclave-cid 18 --debug-mode --attach-console \
-    2>&1 | tee -a "$OUT_BASE/run_hello.console.log"
-  echo "run_hello_rc=$?" | tee -a "$OUT_BASE/run_hello.console.log"
+    >"$OUT_BASE/run_hello.console.log" 2>&1
+  echo "run_hello_rc=$?" >> "$OUT_BASE/run_hello.console.log"
   set -e
 
   # Don't leave hello running.
@@ -229,14 +229,18 @@ main() {
   collect_logs
 
   # Pack results for easy retrieval
-  run "tar_results" bash -lc "tar -C '$OUT_BASE' -czf '${OUT_BASE}.tgz' . && ls -lh '${OUT_BASE}.tgz'"
+  log "tar_results"
+  tar -C "$OUT_BASE" -czf "${OUT_BASE}.tgz" .
+  ls -lh "${OUT_BASE}.tgz"
 
-  echo "--- SMOKE CONSOLE ---"
-  tail -n 20 "$OUT_BASE/run_smoke.console.log" || true
-  echo "--- BASIC CONSOLE ---"
-  tail -n 20 "$OUT_BASE/run_basic.console.log" || true
-  echo "--- VSOCK CONSOLE ---"
-  tail -n 20 "$OUT_BASE/run_vsock.console.log" || true
+  echo "--- SMOKE CONSOLE (tail 50) ---"
+  tail -n 50 "$OUT_BASE/run_smoke.console.log" || true
+  echo "--- BASIC CONSOLE (tail 100) ---"
+  tail -n 100 "$OUT_BASE/run_basic.console.log" || true
+  echo "--- VSOCK CONSOLE (tail 100) ---"
+  tail -n 100 "$OUT_BASE/run_vsock.console.log" || true
+  echo "--- HELLO CONSOLE (tail 50) ---"
+  tail -n 50 "$OUT_BASE/run_hello.console.log" || true
 
   log "DONE (results: ${OUT_BASE}.tgz)"
 }
