@@ -135,9 +135,9 @@ main() {
   run "git_clone" bash -lc "cd '$WORKDIR' && rm -rf EphemeralML && git clone -q https://github.com/tsyrulb/EphemeralML.git"
   run "repo_rev" bash -lc "cd '$REPO_ROOT' && git log -1 --oneline"
 
-  # Build KMS Proxy Host (production mode)
-  log "build_kms_proxy_host (quiet)"
-  ( cd "$HOST_SRC" && cargo build --release --bin kms_proxy_host --features production ) >/tmp/build_kms_host.log 2>&1 || {
+  # Build KMS Proxy Host (production mode) using Docker
+  log "build_kms_proxy_host (via docker)"
+  sudo docker run --rm -v "$REPO_ROOT":/app -w /app/host rust:1.75-alpine sh -c "apk add --no-cache musl-dev && cargo build --release --bin kms_proxy_host --features production" >/tmp/build_kms_host.log 2>&1 || {
     log "ERROR: build_kms_proxy_host failed"
     cat /tmp/build_kms_host.log
   }
@@ -172,7 +172,7 @@ main() {
 
   # Start KMS Host Proxy in background
   log "starting kms_proxy_host in background"
-  sudo nohup "$HOST_SRC/target/release/kms_proxy_host" >"$OUT_BASE/kms_proxy_host.log" 2>&1 &
+  sudo nohup "$REPO_ROOT/host/target/release/kms_proxy_host" >"$OUT_BASE/kms_proxy_host.log" 2>&1 &
   sleep 2
 
   log "run_kms_test_attach_console_30s"
