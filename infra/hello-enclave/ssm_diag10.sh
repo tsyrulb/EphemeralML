@@ -162,7 +162,17 @@ main() {
   REPO_ROOT="$WORKDIR/EphemeralML"
   REPO="$REPO_ROOT/enclaves/vsock-pingpong"
   SMOKE_REPO="$REPO_ROOT/enclaves/busybox-smoke"
+
+  # Locate KMS proxy host crate (repo layout may evolve)
   HOST_SRC="$REPO_ROOT/host"
+  if [[ ! -d "$HOST_SRC" ]]; then
+    log "host dir not found at $HOST_SRC; searching for kms_proxy_host Cargo.toml"
+    HOST_TOML=$(grep -Rsl --include Cargo.toml -e 'kms_proxy_host' "$REPO_ROOT" | head -n1 || true)
+    if [[ -n "$HOST_TOML" ]]; then
+      HOST_SRC=$(dirname "$HOST_TOML")
+    fi
+  fi
+  log "HOST_SRC=$HOST_SRC"
 
   run_quiet "dnf_install_git" bash -lc "sudo dnf install -y git >/dev/null 2>&1 || true"
   run_quiet "dnf_install_build_tools" bash -lc "sudo dnf install -y gcc gcc-c++ make >/dev/null 2>&1 || true"

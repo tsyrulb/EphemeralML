@@ -3,7 +3,7 @@
 # - Tries multiple (AZ, instance_type) combos to dodge EC2 capacity hiccups.
 # - Puts a hard timeout around `terraform apply`.
 # - If apply times out / instance stays Pending too long, prints AWS-side reasons/events.
-# - Always destroys infra on exit.
+# - By default destroys infra on exit (KEEP_INSTANCE=1 disables).
 
 set -Eeuo pipefail
 shopt -s inherit_errexit 2>/dev/null || true
@@ -26,6 +26,7 @@ APPLY_TIMEOUT_SECS="${APPLY_TIMEOUT_SECS:-420}"
 SSM_TIMEOUT_SECS="${SSM_TIMEOUT_SECS:-1200}"
 CYCLE_TIMEOUT_SECS="${CYCLE_TIMEOUT_SECS:-1800}"
 WAIT_RUNNING_SECS="${WAIT_RUNNING_SECS:-240}"
+KEEP_INSTANCE="${KEEP_INSTANCE:-0}"
 
 # Optional: set AWS_PROFILE externally.
 AWS_PROFILE_OPT=()
@@ -60,7 +61,9 @@ destroy() {
 cleanup() {
   destroy
 }
-trap cleanup EXIT
+if [[ "$KEEP_INSTANCE" != "1" ]]; then
+  trap cleanup EXIT
+fi
 
 attempt() {
   AZ="$1"
@@ -222,7 +225,7 @@ PY
 }
 
 main() {
-  log "starting (REGION=$REGION APPLY_TIMEOUT_SECS=$APPLY_TIMEOUT_SECS)"
+  log "starting (REGION=$REGION APPLY_TIMEOUT_SECS=$APPLY_TIMEOUT_SECS KEEP_INSTANCE=$KEEP_INSTANCE)"
   for az in "${CAND_AZS[@]}"; do
     for it in "${CAND_INSTANCE_TYPES[@]}"; do
       log "--- trying az=$az type=$it ---"
@@ -230,8 +233,16 @@ main() {
       AZ="$az" INSTANCE_TYPE="$it" destroy
       if attempt "$az" "$it"; then
         log "diag attempt finished (success path)."
+        if [[ "$KEEP_INSTANCE" == "1" ]]; then
+          log "KEEP_INSTANCE=1: leaving infra up for manual debugging"
+        fi
         return 0
       else
+        if [[ "$KEEP_INSTANCE" == "1" ]]; then
+          log "attempt failed but KEEP_INSTANCE=1: leaving infra up for manual debugging"
+          log "hint: terraform output -raw instance_id (if state exists), or check prior logs"
+          return 1
+        fi
         log "attempt failed; moving on"
       fi
     done
