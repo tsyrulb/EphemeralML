@@ -174,8 +174,10 @@ main() {
   fi
   log "HOST_SRC=$HOST_SRC"
 
-  run_quiet "dnf_install_git" bash -lc "sudo dnf install -y git >/dev/null 2>&1 || true"
-  run_quiet "dnf_install_build_tools" bash -lc "sudo dnf install -y gcc gcc-c++ make >/dev/null 2>&1 || true"
+  # Tools needed for cloning/building (AL2 uses yum; AL2023 uses dnf)
+  run_quiet "install_git" bash -lc "${PKG_INSTALL[*]} git >/dev/null 2>&1 || true"
+  run_quiet "install_build_tools" bash -lc "${PKG_INSTALL[*]} gcc gcc-c++ make >/dev/null 2>&1 || true"
+  run_quiet "install_curl" bash -lc "${PKG_INSTALL[*]} curl >/dev/null 2>&1 || true"
   run "git_clone" bash -lc "cd '$WORKDIR' && rm -rf EphemeralML && git clone -q https://github.com/tsyrulb/EphemeralML.git"
   run "repo_rev" bash -lc "cd '$REPO_ROOT' && git log -1 --oneline"
 
