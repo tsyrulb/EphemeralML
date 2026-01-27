@@ -110,7 +110,7 @@ main() {
   # ---------- quick sanity ----------
   run "uname" uname -a
 
-  # Wait for user-data bootstrap to finish (prevents dnf lock collisions)
+  # Wait for user-data bootstrap to finish (prevents package-manager lock collisions)
   log "waiting for bootstrap to finish..."
   local b_start
   b_start=$(date +%s)
@@ -122,12 +122,18 @@ main() {
     sleep 5
   done
 
-  # Ensure Nitro tooling exists
-  log "dnf_install_nitro (quiet)"
+  # Ensure Nitro tooling exists (AL2023 uses dnf, AL2 uses yum)
+  if command -v dnf >/dev/null 2>&1; then
+    PKG_INSTALL=(sudo dnf install -y)
+  else
+    PKG_INSTALL=(sudo yum install -y)
+  fi
+
+  log "install_nitro_packages (quiet)"
   if ! command -v nitro-cli >/dev/null 2>&1; then
-    sudo dnf install -y aws-nitro-enclaves-cli aws-nitro-enclaves-cli-devel >/tmp/dnf_nitro.log 2>&1 || {
-      log "ERROR: dnf install failed"
-      cat /tmp/dnf_nitro.log
+    "${PKG_INSTALL[@]}" aws-nitro-enclaves-cli aws-nitro-enclaves-cli-devel >/tmp/pkg_nitro.log 2>&1 || {
+      log "ERROR: package install failed"
+      cat /tmp/pkg_nitro.log
       return 41
     }
   fi
