@@ -204,20 +204,20 @@ Goal: make the now-working KMS↔Enclave flow reproducible, observable, and oper
 - [ ] Define “production-ready” gates: tests green + alerts configured + release/rollback procedure validated
 
 ### C) Reliability (define behavior first)
-- [ ] Explicit timeouts everywhere (vsock, proxy, KMS SDK) + overall request deadline
+- [x] Explicit timeouts everywhere (vsock, proxy, KMS SDK) + overall request deadline
 - [ ] Retry policy + exponential backoff + jitter; **retry budget**
 - [ ] Circuit breaker (open/half-open/close) + recovery behavior
 - [ ] Rate limiting + concurrency limits to protect KMS quotas
-- [ ] Specify & test failure mode: **fail-closed vs fail-open** (expected: fail-closed)
+- [x] Specify & test failure mode: **fail-closed vs fail-open** (expected: fail-closed)
 - [ ] Idempotency/repeatability rules for retries (GenerateDataKey vs Decrypt)
 
 ### D) Security / IAM (trust model)
 - [ ] Document trust model: who can call `kms_proxy_host`, how enclave identity is verified (policy/allowlist), and how policies rotate/update
 - [ ] Review IAM + KMS key policy: least privilege, environment separation (dev/stage/prod)
-- [ ] Ensure secrets/attestation docs not logged; define redaction rules + tests/guards
+- [x] Ensure secrets/attestation docs not logged; define redaction rules + tests/guards
 
 ### B) Observability
-- [ ] Structured logs (JSON) + **our own request-id/trace-id** end-to-end; store KMS request-id as response field
+- [x] Structured logs (JSON) + **our own request-id/trace-id** end-to-end; store KMS request-id as response field
 - [ ] Metrics: latency (p50/p95/p99), error-rate, retry counts, circuit-open count, rate-limit hits, KMS throttling
 - [ ] Alerts + dashboards: error-rate, p99, retry spikes, ThrottlingException rate, circuit-open, rate-limit hits
 - [ ] Minimal tracing/spans: proxy↔KMS segments (enough to attribute latency)
