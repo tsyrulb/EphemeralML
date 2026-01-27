@@ -84,16 +84,19 @@ main() {
   run "uname" uname -a
 
   # Ensure Nitro tooling exists
-  run_quiet "dnf_install_nitro" bash -lc "sudo dnf install -y aws-nitro-enclaves-cli aws-nitro-enclaves-cli-devel aws-nitro-enclaves-allocator >/dev/null 2>&1 || true"
+  run "dnf_install_nitro" bash -lc "sudo dnf install -y aws-nitro-enclaves-cli aws-nitro-enclaves-cli-devel"
   if ! command -v nitro-cli >/dev/null 2>&1; then
-    # surface useful info in logs
     run "nitro_cli_missing" bash -lc "echo 'ERROR: nitro-cli not found after install'; sudo dnf list installed | grep -i nitro || true; ls -la /usr/bin/nitro-cli || true"
     return 40
   fi
 
   run "nitro_cli_version" sudo nitro-cli --version
 
+  # Reserve CPUs/memory for enclaves (uses /etc/nitro_enclaves/allocator.yaml).
   run_quiet "enable_allocator" bash -lc "sudo systemctl enable --now nitro-enclaves-allocator.service >/dev/null 2>&1 || true"
+  run_quiet "start_allocator"  bash -lc "sudo systemctl start nitro-enclaves-allocator.service >/dev/null 2>&1 || true"
+
+  # vsock proxy is optional for attach-console, but enable if present.
   run_quiet "enable_vsock_proxy" bash -lc "sudo systemctl enable --now nitro-enclaves-vsock-proxy.service >/dev/null 2>&1 || true"
 
   run "docker_version" sudo docker --version
