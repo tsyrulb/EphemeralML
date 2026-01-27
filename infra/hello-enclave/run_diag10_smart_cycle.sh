@@ -129,8 +129,26 @@ attempt() {
     sleep 10
   done
 
-  # Now run the existing cycle logic for SSM diag (but without re-applying/destroying).
-  # We reuse the robust chunked sender from run_diag10_cycle.sh.
+  # Wait for SSM registration (instance becomes Managed Instance)
+  log "wait for SSM registration"
+  local ssm_start
+  ssm_start=$(date +%s)
+  while true; do
+    if (( $(date +%s) - ssm_start > 240 )); then
+      log "ERROR: instance did not register with SSM within 240s"
+      aws_ec2_dump_instance "$instance_id"
+      return 126
+    fi
+    local ping
+    ping=$(aws "${AWS_PROFILE_OPT[@]}" ssm describe-instance-information --region "$REGION" \
+      --filters "Key=InstanceIds,Values=$instance_id" \
+      --query 'InstanceInformationList[0].PingStatus' --output text 2>/dev/null || echo "")
+    log "ssm_ping=${ping:-}" 
+    [[ "$ping" == "Online" ]] && break
+    sleep 10
+  done
+
+  # Now run the diag10 via SSM (chunked sender)
   log "running diag10 via SSM on $instance_id"
   INSTANCE_ID="$instance_id" SSM_TIMEOUT_SECS="$SSM_TIMEOUT_SECS" python3 - "/tmp/diag10-smart.json" <<'PY'
 import json, os, pathlib, base64, sys
@@ -163,20 +181,31 @@ with open(out_path, 'w', encoding='utf-8') as f:
 PY
 
   local cmd_id
-  cmd_id=$(aws "${AWS_PROFILE_OPT[@]}" ssm send-command --region "$REGION" --cli-input-json file:///tmp/diag10-smart.json --query 'Command.CommandId' --output text)
+  set +e
+  cmd_id=$(aws "${AWS_PROFILE_OPT[@]}" ssm send-command --region "$REGION" --cli-input-json file:///tmp/diag10-smart.json --query 'Command.CommandId' --output text 2>/tmp/ssm_send_command.err)
+  local send_rc=$?
+  set -e
+  if [[ $send_rc -ne 0 || -z "$cmd_id" ]]; then
+    log "ERROR: ssm send-command failed (rc=$send_rc)"
+    tail -n 40 /tmp/ssm_send_command.err || true
+    return 127
+  fi
   log "ssm_command_id=$cmd_id"
 
   local start2
   start2=$(date +%s)
+  local final_status="UNKNOWN"
   while true; do
     if (( $(date +%s) - start2 > CYCLE_TIMEOUT_SECS )); then
       log "cycle timeout reached waiting for SSM"
+      final_status="TimedOut"
       break
     fi
     local status
     status=$(aws "${AWS_PROFILE_OPT[@]}" ssm list-command-invocations --region "$REGION" --command-id "$cmd_id" --details --query 'CommandInvocations[0].Status' --output text 2>/dev/null || echo UNKNOWN)
     log "ssm_status=$status"
     if [[ "$status" == "Success" || "$status" == "Failed" || "$status" == "TimedOut" || "$status" == "Cancelled" ]]; then
+      final_status="$status"
       aws "${AWS_PROFILE_OPT[@]}" ssm get-command-invocation --region "$REGION" --command-id "$cmd_id" --instance-id "$instance_id" --query 'StandardErrorContent' --output text > /tmp/ssm_diag10.stderr.txt 2>/dev/null || true
       aws "${AWS_PROFILE_OPT[@]}" ssm get-command-invocation --region "$REGION" --command-id "$cmd_id" --instance-id "$instance_id" --query 'StandardOutputContent' --output text > /tmp/ssm_diag10.stdout.txt 2>/dev/null || true
       tail -n 120 /tmp/ssm_diag10.stdout.txt || true
@@ -189,7 +218,7 @@ PY
     sleep 10
   done
 
-  return 0
+  [[ "$final_status" == "Success" ]]
 }
 
 main() {
