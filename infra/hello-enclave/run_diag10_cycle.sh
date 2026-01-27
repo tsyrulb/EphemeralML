@@ -1,0 +1,146 @@
+#!/usr/bin/env bash
+# One-button cycle for Nitro Enclaves debugging:
+# 1) terraform apply
+# 2) run diag10 via SSM (build/run enclaves + collect logs)
+# 3) terraform destroy (always, even on failure)
+#
+# Safety guardrails:
+# - Hard time limit for the whole cycle (default 10 minutes)
+# - Always destroys infra on exit
+# - Defaults to us-east-1 + m6i.xlarge + us-east-1a (override via env)
+
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT_DIR"
+
+REGION="${REGION:-us-east-1}"
+AZ="${AZ:-us-east-1a}"
+INSTANCE_TYPE="${INSTANCE_TYPE:-m6i.xlarge}"
+CYCLE_TIMEOUT_SECS="${CYCLE_TIMEOUT_SECS:-600}"
+SSM_TIMEOUT_SECS="${SSM_TIMEOUT_SECS:-220}"
+
+# Optional: set AWS_PROFILE externally.
+AWS_PROFILE_OPT=()
+if [[ -n "${AWS_PROFILE:-}" ]]; then
+  AWS_PROFILE_OPT=(--profile "$AWS_PROFILE")
+fi
+
+log() { echo "[cycle $(date -u +%Y-%m-%dT%H:%M:%SZ)] $*"; }
+
+destroy() {
+  log "terraform destroy (best-effort)"
+  terraform destroy -auto-approve -lock-timeout=60s -var "availability_zone=${AZ}" -var "instance_type=${INSTANCE_TYPE}" || true
+}
+
+cleanup() {
+  destroy
+}
+trap cleanup EXIT
+
+main() {
+  log "terraform init"
+  terraform init -input=false >/dev/null
+
+  log "terraform apply (AZ=${AZ}, type=${INSTANCE_TYPE})"
+  terraform apply -auto-approve -lock-timeout=60s -var "availability_zone=${AZ}" -var "instance_type=${INSTANCE_TYPE}"
+
+  # Try to extract instance id from outputs first; fall back to state.
+  INSTANCE_ID="$(terraform output -raw instance_id 2>/dev/null || true)"
+  if [[ -z "$INSTANCE_ID" ]]; then
+    INSTANCE_ID="$(terraform state show -no-color aws_instance.parent 2>/dev/null | awk '/^id\s*=/{print $3}' | head -n1 || true)"
+  fi
+
+  if [[ -z "$INSTANCE_ID" ]]; then
+    log "ERROR: could not determine instance_id from terraform"
+    terraform output || true
+    terraform state list || true
+    return 2
+  fi
+
+  log "instance_id=$INSTANCE_ID"
+
+  # Send diag10 script via SSM (inline).
+  local diag10
+  diag10="$(python3 - <<'PY'
+import pathlib
+print(pathlib.Path('ssm_diag10.sh').read_text())
+PY
+)"
+
+  log "ssm send-command (timeout=${SSM_TIMEOUT_SECS}s)"
+  local resp cmd_id
+  resp="$(aws "${AWS_PROFILE_OPT[@]}" ssm send-command \
+    --region "$REGION" \
+    --document-name "AWS-RunShellScript" \
+    --comment "EphemeralML diag10 cycle" \
+    --instance-ids "$INSTANCE_ID" \
+    --parameters commands="$diag10" \
+    --timeout-seconds "$SSM_TIMEOUT_SECS" \
+    --output json)"
+
+  cmd_id="$(python3 - <<PY
+import json
+print(json.loads('''$resp''')['Command']['CommandId'])
+PY
+)"
+  log "command_id=$cmd_id"
+
+  # Wait for completion (poll), but do not exceed cycle timeout.
+  local start now elapsed
+  start=$(date +%s)
+  while true; do
+    now=$(date +%s)
+    elapsed=$((now-start))
+    if (( elapsed > CYCLE_TIMEOUT_SECS )); then
+      log "cycle timeout reached while waiting for SSM; stopping wait"
+      break
+    fi
+
+    local inv
+    inv="$(aws "${AWS_PROFILE_OPT[@]}" ssm list-command-invocations --region "$REGION" --command-id "$cmd_id" --details --output json || true)"
+    local status
+    status="$(python3 - <<PY
+import json
+j=json.loads('''$inv''')
+if not j.get('CommandInvocations'):
+  print('UNKNOWN')
+else:
+  print(j['CommandInvocations'][0].get('Status','UNKNOWN'))
+PY
+)"
+
+    log "ssm_status=$status"
+
+    if [[ "$status" == "Success" || "$status" == "Cancelled" || "$status" == "TimedOut" || "$status" == "Failed" ]]; then
+      # Print a short tail of stdout/stderr for quick triage
+      python3 - <<PY
+import json
+j=json.loads('''$inv''')
+if not j.get('CommandInvocations'):
+  raise SystemExit(0)
+ci=j['CommandInvocations'][0]
+plugins=ci.get('CommandPlugins') or []
+for p in plugins:
+  out=(p.get('Output') or '')
+  print('\n--- plugin:', p.get('Name'), 'status:', p.get('Status'))
+  print(out[-3000:])
+PY
+      break
+    fi
+
+    sleep 5
+  done
+
+  log "SSM diag finished (or timed out). Destroy will run via trap."
+}
+
+# Hard limit wrapper around the entire cycle.
+log "starting cycle (hard limit ${CYCLE_TIMEOUT_SECS}s)"
+if command -v timeout >/dev/null 2>&1; then
+  timeout "$CYCLE_TIMEOUT_SECS" bash -lc "$(declare -f log destroy cleanup main); main"
+else
+  main
+fi
+
+log "done"
