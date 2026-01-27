@@ -134,22 +134,25 @@ main() {
   run "git_clone" bash -lc "cd '$WORKDIR' && rm -rf EphemeralML && git clone -q https://github.com/tsyrulb/EphemeralML.git"
   run "repo_rev" bash -lc "cd '$REPO_ROOT' && git log -1 --oneline"
 
-  # Build two docker tags from the same Dockerfile.
+  # Build three docker tags from the same Dockerfile.
   # Important: We MUST set ENTRYPOINT explicitly. Mode is selected via build-arg -> ENV.
   log "docker_build_vsock (quiet)"
   sudo docker build --build-arg MODE=vsock -t ephemeralml/vsock-pingpong:diag10-vsock "$REPO" >/tmp/docker_build_vsock.log 2>&1
   log "docker_build_basic (quiet)"
   sudo docker build --build-arg MODE=basic -t ephemeralml/vsock-pingpong:diag10-basic "$REPO" >/tmp/docker_build_basic.log 2>&1
+  log "docker_build_attestation (quiet)"
+  sudo docker build --build-arg MODE=attestation -t ephemeralml/vsock-pingpong:diag10-attestation "$REPO" >/tmp/docker_build_attestation.log 2>&1
 
   # Inspect Entrypoint/Cmd (these are key for Nitro init semantics)
   run "docker_inspect_vsock" bash -lc "sudo docker inspect ephemeralml/vsock-pingpong:diag10-vsock | grep -A 5 -E '\"Entrypoint\"|\"Cmd\"'"
-  run "docker_inspect_basic" bash -lc "sudo docker inspect ephemeralml/vsock-pingpong:diag10-basic | grep -A 5 -E '\"Entrypoint\"|\"Cmd\"'"
 
   # Build EIFs
   log "build_eif_vsock (quiet)"
   sudo nitro-cli build-enclave --docker-uri ephemeralml/vsock-pingpong:diag10-vsock --output-file "$OUT_BASE/vsock-pingpong-vsock.eif" >/tmp/build_eif_vsock.log 2>&1
   log "build_eif_basic (quiet)"
   sudo nitro-cli build-enclave --docker-uri ephemeralml/vsock-pingpong:diag10-basic --output-file "$OUT_BASE/vsock-pingpong-basic.eif" >/tmp/build_eif_basic.log 2>&1
+  log "build_eif_attestation (quiet)"
+  sudo nitro-cli build-enclave --docker-uri ephemeralml/vsock-pingpong:diag10-attestation --output-file "$OUT_BASE/vsock-pingpong-attestation.eif" >/tmp/build_eif_attestation.log 2>&1
 
   # Smoke-test EIF (ultra-minimal) — should always stay alive and print to console.
   log "docker_build_smoke (quiet)"
@@ -180,31 +183,17 @@ main() {
 
   cleanup_enclaves
 
-  log "run_basic_attach_console_20s"
+  log "run_attestation_attach_console_20s"
   set +e
   sudo timeout 20 nitro-cli run-enclave \
-    --eif-path "$OUT_BASE/vsock-pingpong-basic.eif" \
+    --eif-path "$OUT_BASE/vsock-pingpong-attestation.eif" \
     --cpu-count 2 --memory 1024 --enclave-cid 16 --debug-mode --attach-console \
-    >"$OUT_BASE/run_basic.console.log" 2>&1
-  echo "run_basic_rc=$?" >> "$OUT_BASE/run_basic.console.log"
+    >"$OUT_BASE/run_attestation.console.log" 2>&1
+  echo "run_attestation_rc=$?" >> "$OUT_BASE/run_attestation.console.log"
   set -e
 
   sleep 1
-  sudo nitro-cli describe-enclaves >"$OUT_BASE/describe_after_basic.json" 2>/dev/null || true
-
-  cleanup_enclaves
-
-  log "run_vsock_attach_console_20s"
-  set +e
-  sudo timeout 20 nitro-cli run-enclave \
-    --eif-path "$OUT_BASE/vsock-pingpong-vsock.eif" \
-    --cpu-count 2 --memory 1024 --enclave-cid 17 --debug-mode --attach-console \
-    >"$OUT_BASE/run_vsock.console.log" 2>&1
-  echo "run_vsock_rc=$?" >> "$OUT_BASE/run_vsock.console.log"
-  set -e
-
-  sleep 1
-  sudo nitro-cli describe-enclaves >"$OUT_BASE/describe_after_vsock.json" 2>/dev/null || true
+  sudo nitro-cli describe-enclaves >"$OUT_BASE/describe_after_attestation.json" 2>/dev/null || true
 
   cleanup_enclaves
 
@@ -235,10 +224,8 @@ main() {
 
   echo "--- SMOKE CONSOLE (tail 50) ---"
   tail -n 50 "$OUT_BASE/run_smoke.console.log" || true
-  echo "--- BASIC CONSOLE (tail 100) ---"
-  tail -n 100 "$OUT_BASE/run_basic.console.log" || true
-  echo "--- VSOCK CONSOLE (tail 100) ---"
-  tail -n 100 "$OUT_BASE/run_vsock.console.log" || true
+  echo "--- ATTESTATION CONSOLE (tail 100) ---"
+  tail -n 100 "$OUT_BASE/run_attestation.console.log" || true
   echo "--- HELLO CONSOLE (tail 50) ---"
   tail -n 50 "$OUT_BASE/run_hello.console.log" || true
 
