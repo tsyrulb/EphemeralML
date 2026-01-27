@@ -33,7 +33,8 @@ on_err() {
 trap on_err ERR
 
 # Tee full script output to a log file (SSM keeps stdout too)
-exec > >(tee -a "$OUT_BASE/ssm_diag10.full.log") 2>&1
+# OUT_BASE may not be initialized yet at this point; use safe default.
+exec > >(tee -a "${OUT_BASE:-/tmp/hello-enclave-diag10-pre}/ssm_diag10.full.log") 2>&1
 
 
 # NOTE: OUT_BASE is initialized inside main() so it works even when wrapped by `timeout bash -lc ...`.
