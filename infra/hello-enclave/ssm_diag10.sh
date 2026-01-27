@@ -104,50 +104,55 @@ main() {
   # Clean slate
   cleanup_enclaves
 
-  # ---------- build vsock-pingpong images + EIFs ----------
+  # ---------- build enclaves (smoke + vsock-pingpong) ----------
   # Fetch the repo on-host so the diagnostic is self-contained.
   WORKDIR="/root"
   REPO_ROOT="$WORKDIR/EphemeralML"
   REPO="$REPO_ROOT/enclaves/vsock-pingpong"
+  SMOKE_REPO="$REPO_ROOT/enclaves/busybox-smoke"
 
   run_quiet "dnf_install_git" bash -lc "sudo dnf install -y git >/dev/null 2>&1 || true"
   run "git_clone" bash -lc "cd '$WORKDIR' && rm -rf EphemeralML && git clone -q https://github.com/tsyrulb/EphemeralML.git"
   run "repo_rev" bash -lc "cd '$REPO_ROOT' && git log -1 --oneline"
   run "repo_ls" bash -lc "ls -la '$REPO'"
 
-  # Build two docker tags from same Dockerfile; use CMD override at build time (not /bin/sh)
-  # We use --build-arg MODE only if you later want it; currently Dockerfile ignores MODE.
-  # Instead, we override CMD via --change is not available here; so we keep single image and pass args via EIF run?
-  # Nitro uses image CMD/ENTRYPOINT; easiest is to create two images by patching CMD via Dockerfile ARG.
-  # For now we build two images using Dockerfile arg DEFAULT_MODE and set CMD accordingly.
-  # If DEFAULT_MODE is not present, both images will have CMD ["--mode","vsock"].
+  # Build two docker tags from the same Dockerfile.
+  # Important: We MUST set ENTRYPOINT explicitly. Mode is selected via build-arg -> ENV.
+  run_quiet "docker_build_vsock" bash -lc "cd '$REPO' && sudo docker build --build-arg MODE=vsock -t ephemeralml/vsock-pingpong:diag10-vsock ."
+  run_quiet "docker_build_basic" bash -lc "cd '$REPO' && sudo docker build --build-arg MODE=basic -t ephemeralml/vsock-pingpong:diag10-basic ."
 
-  # Build base image (vsock default)
-  run_quiet "docker_build_vsock" bash -lc "cd '$REPO' && sudo docker build -t ephemeralml/vsock-pingpong:diag10-vsock ."
-
-  # Build a 'basic' variant by overriding CMD at build time using --build-arg and Dockerfile support.
-  # If you add ARG DEFAULT_MODE and use it in CMD, this works. Otherwise, we'll still run basic by passing args at run-enclave time is NOT supported.
-  # So we also build a second Dockerfile on the fly that sets CMD basic.
-  cat >"$OUT_BASE/Dockerfile.basic" <<'EOF'
-FROM ephemeralml/vsock-pingpong:diag10-vsock
-# Same rationale: ensure CMD is the full argv (ENTRYPOINT may be ignored).
-# Use /init so PID1 stays alive and logs to /dev/console even if the app exits.
-CMD ["/init","--mode","basic"]
-EOF
-  run_quiet "docker_build_basic" bash -lc "cd '$OUT_BASE' && sudo docker build -t ephemeralml/vsock-pingpong:diag10-basic -f Dockerfile.basic ."
-
-  # Inspect Entrypoint/Cmd
+  # Inspect Entrypoint/Cmd (these are key for Nitro init semantics)
   run "docker_inspect_vsock" bash -lc "sudo docker inspect ephemeralml/vsock-pingpong:diag10-vsock | sed -n '1,260p'"
   run "docker_inspect_basic" bash -lc "sudo docker inspect ephemeralml/vsock-pingpong:diag10-basic | sed -n '1,260p'"
 
   # Build EIFs
   run "build_eif_vsock" bash -lc "cd '$REPO' && sudo nitro-cli build-enclave --docker-uri ephemeralml/vsock-pingpong:diag10-vsock --output-file '$OUT_BASE/vsock-pingpong-vsock.eif'"
   run "build_eif_basic" bash -lc "cd '$REPO' && sudo nitro-cli build-enclave --docker-uri ephemeralml/vsock-pingpong:diag10-basic --output-file '$OUT_BASE/vsock-pingpong-basic.eif'"
+
+  # Smoke-test EIF (ultra-minimal) — should always stay alive and print to console.
+  run_quiet "docker_build_smoke" bash -lc "cd '$SMOKE_REPO' && sudo docker build -t ephemeralml/busybox-smoke:diag10 ."
+  run "docker_inspect_smoke" bash -lc "sudo docker inspect ephemeralml/busybox-smoke:diag10 | sed -n '1,220p'"
+  run "build_eif_smoke" bash -lc "cd '$SMOKE_REPO' && sudo nitro-cli build-enclave --docker-uri ephemeralml/busybox-smoke:diag10 --output-file '$OUT_BASE/busybox-smoke.eif'"
+
   run "ls_eifs" bash -lc "ls -lh '$OUT_BASE'/*.eif"
 
   # ---------- run EIFs sequentially ----------
   # Use distinct CIDs to avoid collisions
   # Keep attach-console short; if enclave reboots immediately we still capture it.
+
+  cleanup_enclaves
+
+  log "run_smoke_attach_console_12s"
+  set +e
+  sudo timeout 12 nitro-cli run-enclave \
+    --eif-path "$OUT_BASE/busybox-smoke.eif" \
+    --cpu-count 2 --memory 1024 --enclave-cid 15 --debug-mode --attach-console \
+    2>&1 | tee -a "$OUT_BASE/run_smoke.console.log"
+  echo "run_smoke_rc=$?" | tee -a "$OUT_BASE/run_smoke.console.log"
+  set -e
+
+  sleep 1
+  sudo nitro-cli describe-enclaves >"$OUT_BASE/describe_after_smoke.json" 2>/dev/null || true
 
   cleanup_enclaves
 

@@ -14,10 +14,10 @@
 
 Убедиться, что:
 - **нет** `CMD ["/bin/sh","-c", ...]`
-- есть `ENTRYPOINT ["/vsock-pingpong"]`
-- есть `CMD ["--mode","vsock"]` (дефолт)
+- есть **явный** `ENTRYPOINT ["/init"]` (PID1 wrapper пишет в `/dev/console` и держит enclave живым)
+- режим выбирается **через ENV** (`VSOCK_PINGPONG_MODE`) чтобы `ssm_diag10.sh` мог собирать два image (basic/vsock) через `--build-arg MODE=...`
 
-(В текущем репозитории DIAG10 это уже внесено.)
+(Если этого нет — очень часто enclave делает немедленный `reboot: Restarting system` без каких-либо логов приложения.)
 
 ## 2) Запуск инфраструктуры (laptop)
 
@@ -79,5 +79,6 @@ terraform destroy -auto-approve
 - `docker_inspect_*` логи — Entrypoint/Cmd
 
 Ожидание:
-- в basic/vsock должен появиться хотя бы `[enclave] mode=...` (stderr) если PID1 стартует.
-- если снова будет немедленный `reboot: Restarting system` без логов приложения — это значит, что даже entrypoint бинарника не доходит (тогда ищем причину в init/runtime/EIF).
+- в `run_smoke.console.log` должен появиться `[busybox-smoke] alive`.
+- в basic/vsock должен появиться хотя бы `[init] starting` и затем `[init] launching ... --mode ...`.
+- если снова будет немедленный `reboot: Restarting system` **без `[init]`** — это значит, что Nitro init не смог определить/exec команду из образа (проверять Entrypoint/Cmd в docker inspect и семантику build-enclave).
