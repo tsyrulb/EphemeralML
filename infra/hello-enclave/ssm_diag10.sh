@@ -231,15 +231,28 @@ main() {
     exit 51
   }
 
-  # Verify host binary exists and is runnable; locate it if target dir differs.
-  if [[ ! -x "$REPO_ROOT/host/target/release/kms_proxy_host" ]]; then
-    log "ERROR: kms_proxy_host missing at expected path; searching..."
-    find "$REPO_ROOT/host" -maxdepth 6 -type f -name kms_proxy_host -ls >"$OUT_BASE/find_kms_proxy_host.txt" 2>&1 || true
+  # Verify host binary exists and is runnable.
+  # In a Cargo workspace, the target dir is often at the workspace root, not under host/.
+  HOST_BIN=""
+  TARGET_DIR=$(
+    (cd "$HOST_SRC" && /root/.cargo/bin/cargo metadata --format-version 1 --no-deps) \
+      | python3 -c 'import sys,json; print(json.load(sys.stdin)["target_directory"])'
+  )
+  if [[ -x "$TARGET_DIR/release/kms_proxy_host" ]]; then
+    HOST_BIN="$TARGET_DIR/release/kms_proxy_host"
+  elif [[ -x "$HOST_SRC/target/release/kms_proxy_host" ]]; then
+    HOST_BIN="$HOST_SRC/target/release/kms_proxy_host"
+  else
+    log "ERROR: kms_proxy_host missing; searching..."
+    find "$REPO_ROOT" -maxdepth 6 -type f -name kms_proxy_host -ls >"$OUT_BASE/find_kms_proxy_host.txt" 2>&1 || true
     cat "$OUT_BASE/find_kms_proxy_host.txt" || true
+    log "target_directory=$TARGET_DIR"
     exit 52
   fi
-  ( file "$REPO_ROOT/host/target/release/kms_proxy_host" || true ) >"$OUT_BASE/kms_proxy_host.file.txt" 2>&1
-  ( ldd "$REPO_ROOT/host/target/release/kms_proxy_host" || true ) >"$OUT_BASE/kms_proxy_host.ldd.txt" 2>&1
+
+  log "HOST_BIN=$HOST_BIN"
+  ( file "$HOST_BIN" || true ) >"$OUT_BASE/kms_proxy_host.file.txt" 2>&1
+  ( ldd "$HOST_BIN" || true ) >"$OUT_BASE/kms_proxy_host.ldd.txt" 2>&1
 
   # Build docker tags from the same Dockerfile.
   # Important: We MUST set ENTRYPOINT explicitly. Mode is selected via build-arg -> ENV.
