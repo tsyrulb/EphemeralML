@@ -191,29 +191,48 @@ This implementation plan breaks down the Confidential Inference Gateway into dis
 
 Goal: make the now-working KMS↔Enclave flow reproducible, observable, and operable.
 
-### A) E2E tests
-- [ ] Add E2E happy-path test: `enclave → kms_proxy_host → KMS` (GenerateDataKey + Decrypt)
-- [ ] Add negative tests: missing permissions, wrong key alias, invalid attestation, throttling/timeout
+### Definition of Done (DoD) / SLO
+- [ ] Define SLI/SLO: p95/p99 latency, error-rate budget, retry budget, acceptable KMS throttling rate, RTO
+- [ ] Define “production-ready” gates: tests green + alerts configured + release/rollback procedure validated
+
+### C) Reliability (define behavior first)
+- [ ] Explicit timeouts everywhere (vsock, proxy, KMS SDK) + overall request deadline
+- [ ] Retry policy + exponential backoff + jitter; **retry budget**
+- [ ] Circuit breaker (open/half-open/close) + recovery behavior
+- [ ] Rate limiting + concurrency limits to protect KMS quotas
+- [ ] Specify & test failure mode: **fail-closed vs fail-open** (expected: fail-closed)
+- [ ] Idempotency/repeatability rules for retries (GenerateDataKey vs Decrypt)
+
+### D) Security / IAM (trust model)
+- [ ] Document trust model: who can call `kms_proxy_host`, how enclave identity is verified (policy/allowlist), and how policies rotate/update
+- [ ] Review IAM + KMS key policy: least privilege, environment separation (dev/stage/prod)
+- [ ] Ensure secrets/attestation docs not logged; define redaction rules + tests/guards
 
 ### B) Observability
-- [ ] Structured logs (JSON) + correlation ids (KMS request-id propagation)
-- [ ] Metrics: latency (p50/p95/p99), error-rate, retry counts
+- [ ] Structured logs (JSON) + **our own request-id/trace-id** end-to-end; store KMS request-id as response field
+- [ ] Metrics: latency (p50/p95/p99), error-rate, retry counts, circuit-open count, rate-limit hits, KMS throttling
+- [ ] Alerts + dashboards: error-rate, p99, retry spikes, ThrottlingException rate, circuit-open, rate-limit hits
+- [ ] Minimal tracing/spans: proxy↔KMS segments (enough to attribute latency)
 
-### C) Reliability
-- [ ] Explicit timeouts everywhere (vsock, proxy, KMS SDK)
-- [ ] Retry policy + exponential backoff + jitter; circuit breaker
-- [ ] Rate limiting to protect KMS quotas
+### A) E2E tests
+- [ ] E2E happy-path: `enclave → kms_proxy_host → KMS` (GenerateDataKey + Decrypt)
+- [ ] Negative: missing permissions, wrong key alias, invalid attestation
+- [ ] Degradation tests: throttling/timeout (verify **behavior**: backoff/limits/errors), not just “it fails”
+- [ ] Resilience: “circuit opens + recovery”
+- [ ] Ensure retries do not exceed budget; verify request-id correlation in logs/metrics
 
-### D) Security / IAM
-- [ ] Review IAM + KMS key policy: least privilege, environment separation (dev/stage/prod)
-- [ ] Ensure secrets/attestation docs not logged; add guardrails
-
-### E) Packaging / release
-- [ ] Reproducible build artifacts for `kms_proxy_host` (versioned, checksums)
+### E) Packaging / release (supply-chain)
+- [ ] Reproducible build artifacts for `kms_proxy_host` (versioned) + checksums
+- [ ] Pinned dependencies/lockfiles + CI reproducibility
+- [ ] SBOM + artifact signing (e.g. cosign) / provenance
+- [ ] Release + rollback procedure (documented and tested)
 - [ ] Minimal runtime packaging (documented)
 
 ### F) Runbook
 - [ ] Deploy + debug checklist (E51, allocator, cpu pool exhaustion, etc.)
+- [ ] Incident playbooks: KMS throttling, latency spike, auth failures, elevated 5xx
+- [ ] “How to find root cause” via metrics/logs/traces; escalation steps
+- [ ] Rotation/compromise procedures (keys/policies) where applicable
 - [ ] Link to the postmortem: `infra/hello-enclave/KMS_DEBUG_NOTES_2026-01-27.md`
 
 ---
