@@ -135,19 +135,23 @@ main() {
   run "git_clone" bash -lc "cd '$WORKDIR' && rm -rf EphemeralML && git clone -q https://github.com/tsyrulb/EphemeralML.git"
   run "repo_rev" bash -lc "cd '$REPO_ROOT' && git log -1 --oneline"
 
-  # Install specific stable Rust on host for KMS Proxy
-  log "install_rust_on_host (stable 1.84)"
-  if ! command -v cargo >/dev/null 2>&1; then
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.84.0 >/dev/null 2>&1
-    source "$HOME/.cargo/env"
-  else
-    source "$HOME/.cargo/env" || true
-    rustup default 1.84.0 >/dev/null 2>&1 || rustup toolchain install 1.84.0 >/dev/null 2>&1
+  # Install Rust on host for KMS Proxy
+  # NOTE: our deps (aws-sdk-kms etc.) currently require Rust/Cargo >= 1.88, so do NOT pin to old toolchains.
+  log "install_rust_on_host (stable)"
+  export CARGO_HOME="/root/.cargo"
+  export RUSTUP_HOME="/root/.rustup"
+  if ! command -v /root/.cargo/bin/rustup >/dev/null 2>&1; then
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --no-modify-path >/dev/null 2>&1
   fi
+  source "/root/.cargo/env" || true
+  /root/.cargo/bin/rustup toolchain install stable -q || true
+  /root/.cargo/bin/rustup default stable || true
+  /root/.cargo/bin/rustc --version || true
+  /root/.cargo/bin/cargo --version || true
 
   # Build KMS Proxy Host (production mode)
   log "build_kms_proxy_host"
-  ( source "$HOME/.cargo/env" && cd "$HOST_SRC" && cargo build --release --bin kms_proxy_host --features production ) >/tmp/build_kms_host.log 2>&1 || {
+  ( export CARGO_HOME="/root/.cargo"; export RUSTUP_HOME="/root/.rustup"; source "/root/.cargo/env"; cd "$HOST_SRC" && /root/.cargo/bin/cargo build --release --bin kms_proxy_host --features production ) >/tmp/build_kms_host.log 2>&1 || {
     log "ERROR: build_kms_proxy_host failed"
     cat /tmp/build_kms_host.log
   }
