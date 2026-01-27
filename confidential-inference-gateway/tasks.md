@@ -158,6 +158,11 @@ This implementation plan breaks down the Confidential Inference Gateway into dis
 - [*] **11.5** Write local mock tests for KMS request formatting
 - [*] **11.6** Write AWS integration tests for KMS policy enforcement
 - [*] **11.7** Write property tests for key expiration and lifecycle
+- [x] **11.8** End-to-end AWS KMS RecipientInfo flow (attestation-bound decrypt)
+  - ✅ Host proxy sets `RecipientInfo.key_encryption_algorithm = RSAES_OAEP_SHA_256`
+  - ✅ Enclave provides RSA public key in NSM attestation request (SPKI DER)
+  - ✅ `GenerateDataKey` + `Decrypt` works end-to-end; enclave receives `ciphertext_for_recipient`
+  - Notes: `infra/hello-enclave/KMS_DEBUG_NOTES_2026-01-27.md`
 - _Requirements: 2.1, 2.3, 2.9, 2.4, 2.6_
 
 ### 12. Model Integrity and Loading
@@ -179,6 +184,37 @@ This implementation plan breaks down the Confidential Inference Gateway into dis
 - _Requirements: Model integrity requirements, 5.1, 5.5, 5.7, 5.8_
 
 **Phase 4 Checkpoint:** AWS integration and model loading working
+
+---
+
+## Milestone: Production-ready KMS proxy v1 (Hardening)
+
+Goal: make the now-working KMS↔Enclave flow reproducible, observable, and operable.
+
+### A) E2E tests
+- [ ] Add E2E happy-path test: `enclave → kms_proxy_host → KMS` (GenerateDataKey + Decrypt)
+- [ ] Add negative tests: missing permissions, wrong key alias, invalid attestation, throttling/timeout
+
+### B) Observability
+- [ ] Structured logs (JSON) + correlation ids (KMS request-id propagation)
+- [ ] Metrics: latency (p50/p95/p99), error-rate, retry counts
+
+### C) Reliability
+- [ ] Explicit timeouts everywhere (vsock, proxy, KMS SDK)
+- [ ] Retry policy + exponential backoff + jitter; circuit breaker
+- [ ] Rate limiting to protect KMS quotas
+
+### D) Security / IAM
+- [ ] Review IAM + KMS key policy: least privilege, environment separation (dev/stage/prod)
+- [ ] Ensure secrets/attestation docs not logged; add guardrails
+
+### E) Packaging / release
+- [ ] Reproducible build artifacts for `kms_proxy_host` (versioned, checksums)
+- [ ] Minimal runtime packaging (documented)
+
+### F) Runbook
+- [ ] Deploy + debug checklist (E51, allocator, cpu pool exhaustion, etc.)
+- [ ] Link to the postmortem: `infra/hello-enclave/KMS_DEBUG_NOTES_2026-01-27.md`
 
 ---
 
