@@ -137,7 +137,7 @@ main() {
 
   # Build KMS Proxy Host (production mode) using Docker
   log "build_kms_proxy_host (via docker)"
-  sudo docker run --rm -v "$REPO_ROOT":/app -w /app/host rust:1.75-alpine sh -c "apk add --no-cache musl-dev && cargo build --release --bin kms_proxy_host --features production" >/tmp/build_kms_host.log 2>&1 || {
+  sudo docker run --rm -v "$REPO_ROOT":/app -w /app/host rust:latest sh -c "apt-get update && apt-get install -y musl-tools && cargo build --release --bin kms_proxy_host --features production" >/tmp/build_kms_host.log 2>&1 || {
     log "ERROR: build_kms_proxy_host failed"
     cat /tmp/build_kms_host.log
   }
