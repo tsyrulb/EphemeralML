@@ -74,14 +74,31 @@ import json, os, pathlib, sys
 out_path = sys.argv[1]
 instance_id = os.environ["INSTANCE_ID"]
 timeout = int(os.environ.get("SSM_TIMEOUT_SECS", "220"))
-script = pathlib.Path("ssm_diag10.sh").read_text()
+import base64
+script = pathlib.Path("ssm_diag10.sh").read_bytes()
+script_b64 = base64.b64encode(script).decode("ascii")
+
+# AWS-RunShellScript has practical size limits per command string.
+# Send the script as base64 in small chunks, reconstruct on the instance, then execute.
+chunks = [script_b64[i:i+3000] for i in range(0, len(script_b64), 3000)]
+commands = [
+  "set -euo pipefail",
+  "rm -f /tmp/ssm_diag10.sh /tmp/ssm_diag10.b64",
+]
+for c in chunks:
+  commands.append("printf '%s' '" + c + "' >> /tmp/ssm_diag10.b64")
+commands += [
+  "base64 -d /tmp/ssm_diag10.b64 > /tmp/ssm_diag10.sh",
+  "chmod +x /tmp/ssm_diag10.sh",
+  "bash -lc /tmp/ssm_diag10.sh",
+]
 
 payload = {
   "DocumentName": "AWS-RunShellScript",
   "Comment": "EphemeralML diag10 cycle",
   "InstanceIds": [instance_id],
   "TimeoutSeconds": timeout,
-  "Parameters": {"commands": [script]},
+  "Parameters": {"commands": commands},
 }
 
 with open(out_path, "w", encoding="utf-8") as f:
