@@ -128,29 +128,36 @@ PY
       break
     fi
 
-    local inv
-    inv="$(aws "${AWS_PROFILE_OPT[@]}" ssm list-command-invocations --region "$REGION" --command-id "$cmd_id" --details --output json || true)"
+    local inv_file
+    inv_file="$(mktemp -t ssm-inv-XXXXXX.json)"
+    aws "${AWS_PROFILE_OPT[@]}" ssm list-command-invocations --region "$REGION" --command-id "$cmd_id" --details --output json > "$inv_file" 2>/dev/null || true
+    
     local status
-    status="$(echo "$inv" | python3 -c 'import json, sys; j=json.load(sys.stdin); print(j["CommandInvocations"][0]["Status"] if j.get("CommandInvocations") else "UNKNOWN")')"
+    status="$(python3 -c 'import json, sys; j=json.load(sys.stdin); print(j["CommandInvocations"][0]["Status"] if j.get("CommandInvocations") else "UNKNOWN")' < "$inv_file")"
 
     log "ssm_status=$status"
 
     if [[ "$status" == "Success" || "$status" == "Cancelled" || "$status" == "TimedOut" || "$status" == "Failed" ]]; then
       # Print a short tail of stdout/stderr for quick triage
-      echo "$inv" | python3 - <<'PY'
+      python3 - <<'PY' < "$inv_file"
 import json, sys
-j=json.load(sys.stdin)
-if not j.get('CommandInvocations'):
-    sys.exit(0)
-ci=j['CommandInvocations'][0]
-plugins=ci.get('CommandPlugins') or []
-for p in plugins:
-    out=(p.get('Output') or '')
-    print(f"\n--- plugin: {p.get('Name')} status: {p.get('Status')}")
-    print(out[-3000:])
+try:
+    j=json.load(sys.stdin)
+    if not j.get('CommandInvocations'):
+        sys.exit(0)
+    ci=j['CommandInvocations'][0]
+    plugins=ci.get('CommandPlugins') or []
+    for p in plugins:
+        out=(p.get('Output') or '')
+        print(f"\n--- plugin: {p.get('Name')} status: {p.get('Status')}")
+        print(out[-3000:])
+except Exception as e:
+    print(f"Error parsing inv_file: {e}")
 PY
+      rm -f "$inv_file"
       break
     fi
+    rm -f "$inv_file"
 
     sleep 5
   done
