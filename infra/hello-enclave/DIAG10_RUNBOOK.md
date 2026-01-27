@@ -122,6 +122,11 @@ grep '"request_id":"<RID>"' /var/log/ephemeralml-kms-proxy.log 2>/dev/null || tr
 # journalctl -u kms-proxy-host -o cat | grep '"request_id":"<RID>"'
 ```
 
+Если поднят локальный OTel Collector (в diag10 он стартует контейнером `otelcol`), можно смотреть его вывод:
+```bash
+sudo docker logs --tail 200 otelcol
+```
+
 Показать только ошибки:
 ```bash
 grep '"event":"kms_proxy_response"' /var/log/ephemeralml-kms-proxy.log | grep '"ok":false'
