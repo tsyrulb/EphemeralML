@@ -37,11 +37,12 @@ This implementation plan breaks down the Confidential Inference Gateway into dis
 - _Requirements: 1.1, 1.7, 3.7, 3.8, 3.9, 6.4, 6.11, 6.12, 6.13_
 
 ### 4. Mock Mode Attestation and Verification
-- [🚧] **4.1** Implement attestation verification (mock mode working, production stubbed)
-  - ✅ PCR measurement validation against client allowlists
-  - ✅ Nonce-based freshness tracking with replay detection
-  - ✅ Ephemeral key extraction from attestation user data
-  - ❌ Real AWS certificate chain verification (marked `todo!()`)
+- [x] **4.1** Implement attestation verification (hardened production mode)
+  - [x] PCR measurement validation against client allowlists
+  - [x] Nonce-based freshness tracking with replay detection
+  - [x] Ephemeral key extraction from attestation user data
+  - [x] Hardened AWS certificate chain verification (Leaf -> Intermediate -> Root CA)
+  - [x] Full COSE/CBOR parsing for attestation documents
 - [x] **4.2** Create client-side freshness enforcement with LRU cache
 - [x] **4.3** Implement policy management with signature verification (mock mode)
 - _Requirements: 1.1, 1.2, 1.5, 1.6, 1.7_
@@ -143,19 +144,19 @@ This implementation plan breaks down the Confidential Inference Gateway into dis
 
 ### 11. AWS KMS Integration
 - [x] **11.1** Create KMS client with VSock proxy integration
-- [x] **11.2** Implement DEK decryption with attestation document inclusion
-- [ ] **11.3** Add attestation-bound policy enforcement
+- [x] **11.2** Implement DEK decryption with attestation-bound RSA key (RecipientInfo)
+- [🚧] **11.3** Add attestation-bound policy hardening (CURRENT FOCUS)
 - [ ] **11.4** Implement key expiration and rotation support
 - [*] **11.5** Write local mock tests for KMS request formatting
 - [*] **11.6** Write AWS integration tests for KMS policy enforcement
 - [*] **11.7** Write property tests for key expiration and lifecycle
 - _Requirements: 2.1, 2.3, 2.9, 2.4, 2.6_
 
-### 12. Model Integrity and Loading
-- [ ] **12.1** Create signed model manifest verification with Ed25519
-- [ ] **12.2** Add model hash validation against manifest
-- [ ] **12.3** Implement safetensors format parsing and validation
-- [ ] **12.4** Create real Candle framework integration for model loading
+### 12. Model Integrity and Loading (CURRENT FOCUS)
+- [x] **12.1** Create signed model manifest verification with Ed25519
+- [x] **12.2** Add model hash validation against manifest
+- [x] **12.3** Implement safetensors format parsing and validation
+- [x] **12.4** Create real Candle framework integration for model loading
 - [ ] **12.5** Implement secure memory management with explicit zeroization
 - [*] **12.6** Write property tests for model integrity verification
 - [*] **12.7** Write property tests for secure memory management
@@ -280,29 +281,22 @@ This implementation plan breaks down the Confidential Inference Gateway into dis
 
 ## Current Status Summary
 
-**✅ Completed (Phase 1 + Most of Phase 2):**
+**✅ Completed (Phase 1, 2, 3, and part of 4):**
 - Project structure, dependencies, and build system
-- Mock attestation, HPKE sessions, receipt signing
-- Policy management and input validation
-- Mock TCP communication and testing framework
-- Real HPKE encryption (ChaCha20-Poly1305) with X25519 key exchange
-- Production-grade session key derivation with attestation binding
-- NSM API integration for attestation documents (Task 8.1)
-- Protocol message framing and feature negotiation
+- Production HPKE sessions and receipt signing
+- Hardened Attestation Verification (COSE/CBOR, AWS Cert Chain validation)
+- VSock communication with DoS protection and framing
+- Host Proxy as blind relay for KMS and S3
+- KMS RecipientInfo implementation with RSA-2048 key release
 
 **🚧 Partially Complete:**
-- Attestation verification (mock working, production certificate chain stubbed)
-- Policy signature verification (mock working, Ed25519 verification stubbed)
+- KMS Policy Hardening (Task 11.3)
+- Model Loading and Integrity (Task 12)
 
 **❌ Not Started:**
-- Protocol version binding in attestation/receipts (Task 7.3)
-- AWS certificate chain verification (Task 8.2)
-- PCR measurement extraction/validation (Task 8.3)
-- Certificate validity checking (Task 8.4)
-- VSock communication (Phase 3)
-- AWS KMS integration (Phase 4)
 - Production inference engine (Phase 5)
 - End-to-end integration (Phases 6-8)
+- Comprehensive error handling and compliance (Phase 6)
 
 **Test Coverage:**
 - Total: 98 tests passing
