@@ -148,7 +148,7 @@ This implementation plan breaks down the Confidential Inference Gateway into dis
 - [x] **11.1** Create KMS client with VSock proxy integration
 - [x] **11.2** Implement DEK decryption with attestation-bound RSA key (RecipientInfo)
 - [x] **11.3** Add attestation-bound policy hardening (COMPLETED)
-- [ ] **11.4** Implement key expiration and rotation support
+- [x] **11.4** Implement key expiration and rotation support
 
 ### 12. Model Integrity and Loading
 - [x] **12.1** Create signed model manifest verification with Ed25519
@@ -158,7 +158,7 @@ This implementation plan breaks down the Confidential Inference Gateway into dis
 - [x] **12.5** Implement secure memory management with explicit zeroization
 - [x] **12.6** Create S3WeightStorage for production model fetching
 
-**Phase 4 Checkpoint:** AWS integration and model loading working
+**Phase 4 Checkpoint:** ✅ AWS integration and model loading working
 
 ---
 
@@ -225,15 +225,15 @@ This implementation plan breaks down the Confidential Inference Gateway into dis
 - _Requirements: 15.4, 15.5_
 
 ### 19. Integration and End-to-End Wiring
-- [ ] **19.1** Wire client, host, and enclave components together
-- [ ] **19.2** Add end-to-end communication flow with VSock
-- [ ] **19.3** Implement complete inference request lifecycle
-- [ ] **19.4** Create deployment scripts for AWS EC2 with Nitro Enclaves
+- [x] **19.1** Wire client, host, and enclave components together
+- [x] **19.2** Add end-to-end communication flow with VSock
+- [x] **19.3** Implement complete inference request lifecycle
+- [x] **19.4** Create deployment scripts for AWS EC2 with Nitro Enclaves
 - [*] **19.5** Write integration tests for complete system
 - [*] **19.6** Test error scenarios and recovery procedures
 - _Requirements: All requirements_
 
-**Phase 7 Checkpoint:** Complete system integration
+**Phase 7 Checkpoint:** ✅ Complete system integration
 
 ---
 
@@ -247,14 +247,14 @@ This implementation plan breaks down the Confidential Inference Gateway into dis
 - _Requirements: 11.1, 11.7, 11.9, 11.10_
 
 ### 21. Production Deployment and Validation
-- [ ] **21.1** Set up EC2 instances with Nitro Enclaves support
-- [ ] **21.2** Deploy EIF files to production enclaves
-- [ ] **21.3** Configure KMS keys with attestation-bound policies
+- [x] **21.1** Set up EC2 instances with Nitro Enclaves support
+- [x] **21.2** Deploy EIF files to production enclaves
+- [x] **21.3** Configure KMS keys with attestation-bound policies
 - [ ] **21.4** Set up monitoring and logging for production system
-- [ ] **21.5** Test complete system on actual AWS Nitro hardware
-- [ ] **21.6** Validate attestation with real PCR measurements
-- [ ] **21.7** Test KMS authorization model with attestation-bound policies
-- [ ] **21.8** Verify security boundaries in production environment
+- [x] **21.5** Test complete system on actual AWS Nitro hardware
+- [x] **21.6** Validate attestation with real PCR measurements
+- [x] **21.7** Test KMS authorization model with attestation-bound policies
+- [x] **21.8** Verify security boundaries in production environment
 - _Requirements: 12.1, 12.2, 12.3, 12.6, All requirements (production validation)_
 
 **Final Checkpoint:** ✅ Complete v1 Gateway system ready for production deployment
