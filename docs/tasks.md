@@ -203,8 +203,12 @@ This implementation plan breaks down the Confidential Inference Gateway into dis
 - [x] **16.2** Add separation of logs, receipts, and performance metrics
 - [x] **16.3** Create audit trails without sensitive data exposure
   - ✅ Automatic sanitization of sensitive keys (input_data, weights, etc.)
-- [ ] **16.4** Implement compliance reporting and forensic analysis
-- [ ] **16.5** Create receipt verification tools for compliance
+- [~] **16.4** Implement compliance reporting and forensic analysis
+  - ✅ `generate_compliance_report` CLI tool created (JSON/CSV/HTML output)
+  - 🚧 Client lib needs compilation fixes before bin works
+- [~] **16.5** Create receipt verification tools for compliance
+  - ✅ `verify_receipt` CLI tool created (signature, binding, PCR verification)
+  - 🚧 Client lib needs compilation fixes before bin works
 - [*] **16.6** Write property tests for security event logging
 - _Requirements: 9.1, 9.2, 9.3, 9.7, 9.8, 9.9, 9.5, 6.8_
 
