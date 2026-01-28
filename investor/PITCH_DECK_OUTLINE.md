@@ -25,10 +25,13 @@
    - Secure inference endpoint, SDK, policy controls, evidence package
 
 8. **Market & buyers**
-   - Regulated industries; AI SaaS; enterprise ML platforms
+   - **Regulated Industries**: Defense, Government, Finance, Healthcare.
+   - **Use Case**: High-Assurance Confidential Inference for sensitive document processing and PII-heavy analytics.
 
-9. **Moat**
-   - Attestation allowlisting pipeline + key-release policy + operational excellence
+9. **Technical Focus**
+   - **Hardware-Rooted**: AWS Nitro Enclaves + NSM.
+   - **CPU-Optimized**: High-performance inference for MiniLM and BERT-style models.
+   - **Cryptographic Rigor**: RSA-2048 SPKI DER KMS handshakes.
 
 10. **Roadmap & milestones**
    - MVP → enterprise readiness → expansion; define measurable milestones

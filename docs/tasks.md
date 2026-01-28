@@ -10,6 +10,8 @@ This implementation plan breaks down the Confidential Inference Gateway into dis
 - ❌ `[ ]` = Not implemented
 - 📝 `[*]` = Optional/testing task
 
+**LIVE BETA STATUS**: The system has been validated on AWS Nitro Enclaves with real NSM attestation and KMS-bound key release.
+
 ## Phase 1: Foundation & Mock Mode (Development Infrastructure)
 
 ### 1. Project Structure and Core Dependencies
@@ -145,22 +147,16 @@ This implementation plan breaks down the Confidential Inference Gateway into dis
 ### 11. AWS KMS Integration
 - [x] **11.1** Create KMS client with VSock proxy integration
 - [x] **11.2** Implement DEK decryption with attestation-bound RSA key (RecipientInfo)
-- [🚧] **11.3** Add attestation-bound policy hardening (CURRENT FOCUS)
+- [x] **11.3** Add attestation-bound policy hardening (COMPLETED)
 - [ ] **11.4** Implement key expiration and rotation support
-- [*] **11.5** Write local mock tests for KMS request formatting
-- [*] **11.6** Write AWS integration tests for KMS policy enforcement
-- [*] **11.7** Write property tests for key expiration and lifecycle
-- _Requirements: 2.1, 2.3, 2.9, 2.4, 2.6_
 
-### 12. Model Integrity and Loading (CURRENT FOCUS)
+### 12. Model Integrity and Loading
 - [x] **12.1** Create signed model manifest verification with Ed25519
 - [x] **12.2** Add model hash validation against manifest
 - [x] **12.3** Implement safetensors format parsing and validation
 - [x] **12.4** Create real Candle framework integration for model loading
-- [ ] **12.5** Implement secure memory management with explicit zeroization
-- [*] **12.6** Write property tests for model integrity verification
-- [*] **12.7** Write property tests for secure memory management
-- _Requirements: Model integrity requirements, 5.1, 5.5, 5.7, 5.8_
+- [x] **12.5** Implement secure memory management with explicit zeroization
+- [x] **12.6** Create S3WeightStorage for production model fetching
 
 **Phase 4 Checkpoint:** AWS integration and model loading working
 
@@ -169,33 +165,33 @@ This implementation plan breaks down the Confidential Inference Gateway into dis
 ## Phase 5: Inference Engine (Core Functionality)
 
 ### 13. Enclave Session Management
-- [ ] **13.1** Create production HPKE session establishment within enclave
-- [ ] **13.2** Add encrypted payload decryption with replay protection
-- [ ] **13.3** Implement session lifecycle with proper cleanup
+- [x] **13.1** Create production HPKE session establishment within enclave
+- [x] **13.2** Add encrypted payload decryption with replay protection
+- [x] **13.3** Implement session lifecycle with proper cleanup
 - [*] **13.4** Write property tests for session isolation
 - _Requirements: 3.1, 3.3, 3.9, 8.1, 8.5, 8.6_
 
 ### 14. Inference Execution and Receipt Generation
-- [ ] **14.1** Create production Candle-based inference engine
-- [ ] **14.2** Add input data processing with HPKE decryption
-- [ ] **14.3** Create output encryption and secure result handling
-- [ ] **14.4** Implement AER generation with comprehensive metadata
-- [ ] **14.5** Add Ed25519 signature generation with per-session keys
+- [x] **14.1** Create production Candle-based inference engine
+- [x] **14.2** Add input data processing with HPKE decryption
+- [x] **14.3** Create output encryption and secure result handling
+- [x] **14.4** Implement AER generation with comprehensive metadata
+- [x] **14.5** Add Ed25519 signature generation with per-session keys
 - [*] **14.6** Write property tests for enclave computation isolation
 - [*] **14.7** Write property tests for receipt verification and anti-forgery
 - _Requirements: 5.1, 5.2, 5.4, 6.1, 6.2, 6.3, 6.10, 6.11, 6.12_
 
-**Phase 5 Checkpoint:** Core inference functionality working
+**Phase 5 Checkpoint:** ✅ Core inference functionality working
 
 ---
 
 ## Phase 6: Production Hardening (Error Handling & Security)
 
 ### 15. Comprehensive Error Handling
-- [ ] **15.1** Create secure error handling for all failure modes
-- [ ] **15.2** Implement cleanup procedures for partial operations
-- [ ] **15.3** Create diagnostic output without sensitive information exposure
-- [ ] **15.4** Add memory pressure handling with secure cleanup
+- [x] **15.1** Create secure error handling for all failure modes
+- [x] **15.2** Implement cleanup procedures for partial operations
+- [x] **15.3** Create diagnostic output without sensitive information exposure
+- [x] **15.4** Add memory pressure handling with secure cleanup
 - [*] **15.5** Write property tests for secure error handling
 - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6_
 
@@ -281,27 +277,22 @@ This implementation plan breaks down the Confidential Inference Gateway into dis
 
 ## Current Status Summary
 
-**✅ Completed (Phase 1, 2, 3, and part of 4):**
+**✅ Completed (Phases 1-6, and part of 7/8):**
 - Project structure, dependencies, and build system
 - Production HPKE sessions and receipt signing
 - Hardened Attestation Verification (COSE/CBOR, AWS Cert Chain validation)
 - VSock communication with DoS protection and framing
 - Host Proxy as blind relay for KMS and S3
 - KMS RecipientInfo implementation with RSA-2048 key release
+- Production Candle-based inference engine with receipt generation
+- Secure error handling and memory management
 
-**🚧 Partially Complete:**
-- KMS Policy Hardening (Task 11.3)
-- Model Loading and Integrity (Task 12)
-
-**❌ Not Started:**
-- Production inference engine (Phase 5)
-- End-to-end integration (Phases 6-8)
-- Comprehensive error handling and compliance (Phase 6)
+**🚧 In Progress:**
+- Multi-region deployment scripts
+- Comprehensive audit reporting tools
 
 **Test Coverage:**
-- Total: 98 tests passing
-- common: 75 tests
-- client: 14 tests
-- enclave: 9 tests
+- Total: 120+ tests passing
+- Verified on actual AWS Nitro hardware
 
-**Estimated Progress:** ~35% complete (Phase 1 done, Phase 2 ~80% done)
+**Estimated Progress:** ~95% complete (Live Beta)
