@@ -1,0 +1,486 @@
+AWS Decision Guide
+
+Choosing an AWS cryptography service
+
+Copyright © 2026 Amazon Web Services, Inc. and/or its aﬃliates. All rights reserved.
+
+Choosing an AWS cryptography service
+
+AWS Decision Guide
+
+Choosing an AWS cryptography service: AWS Decision Guide
+Copyright © 2026 Amazon Web Services, Inc. and/or its aﬃliates. All rights reserved.
+Amazon's trademarks and trade dress may not be used in connection with any product or service
+that is not Amazon's, in any manner that is likely to cause confusion among customers, or in any
+manner that disparages or discredits Amazon. All other trademarks not owned by Amazon are
+the property of their respective owners, who may or may not be aﬃliated with, connected to, or
+sponsored by Amazon.
+
+Choosing an AWS cryptography service
+
+AWS Decision Guide
+
+Table of Contents
+Decision guide .................................................................................................................................. 1
+Introduction ................................................................................................................................................... 1
+Understand ..................................................................................................................................................... 2
+Consider .......................................................................................................................................................... 4
+Choose ............................................................................................................................................................. 5
+Use ................................................................................................................................................................... 6
+Explore .......................................................................................................................................................... 11
+Document history .......................................................................................................................... 12
+
+iii
+
+Choosing an AWS cryptography service
+
+AWS Decision Guide
+
+Choosing an AWS cryptography service
+Taking the ﬁrst step
+
+Purpose
+
+Help determine which AWS cryptography
+services are the best ﬁt for your organization.
+
+Last updated
+
+January 31, 2025
+
+Covered services
+
+• AWS Certiﬁcate Manager
+• AWS CloudHSM
+• AWS Database Encryption SDK
+• AWS Encryption SDK
+• AWS KMS
+• AWS Private CA
+• AWS Secrets Manager
+
+Related guides
+
+Choosing AWS security, identity, and
+governance services
+
+Introduction
+Cryptography is a cornerstone of security in cloud computing, helping to ensure data
+conﬁdentiality, integrity, and authenticity. In a cloud environment, sensitive data may traverse
+public networks and reside on shared infrastructure, making robust cryptographic measures
+essential for protecting against unauthorized access or tampering.
+AWS oﬀers a comprehensive range of cryptographic services to secure data, manage encryption
+keys, and protect sensitive information. These include AWS Key Management Service (KMS) for
+centralized key management, AWS CloudHSM for PKCS11 applications and dedicated hardware
+security modules, and the AWS Encryption SDK for client-side encryption. AWS Secrets Manager
+is a service that enables you to securely store, manage, and retrieve sensitive information such
+as database credentials, API keys, and other secrets throughout their lifecycle. AWS Certiﬁcate
+Manager (ACM) simpliﬁes the process of provisioning, managing, and deploying publicly trusted
+Introduction
+
+1
+
+Choosing an AWS cryptography service
+
+AWS Decision Guide
+
+transport layer security (TLS) certiﬁcates for use with AWS services. The AWS Private Certiﬁcate
+Authority (PCA) enables you to generate and distribute x509 certiﬁcates for your internal resources.
+The guide is designed to help you choose the AWS cryptography services and tools that are the
+best ﬁt for your needs and your organization.
+The following video is a two-minute segment of a presentation introducing best practices for
+cryptography.
+
+Understand
+
+Choosing the right AWS cryptography services depends on your speciﬁc use case, data security
+requirements, compliance obligations, and operational preferences as outlined in the following
+tables.
+Key management
+If you need to securely manage encryption keys, consider AWS Key Management Service
+(KMS). It allows you to create, rotate, and manage cryptographic keys integrated with other
+AWS services. KMS uses FIPS-validated HSMs to help you meet compliance rewuirements
+and to provide assurance on the correctness of the implementation of the cryptographic
+Understand
+
+2
+
+Choosing an AWS cryptography service
+
+AWS Decision Guide
+
+primitives exposed by KMS. Some applications require certain cryptographic functions or
+application interfaces that are only available with a traditional HSM and AWS CloudHSM
+provides dedicated hardware security modules (HSMs) in the cloud which gives you full control
+over your cryptographic keys and operations.
+Data encryption
+For encrypting sensitive data such as customer details or intellectual property, AWS KMS is
+tightly integrated with AWS storage, database, and messaging services (e.g. S3, RDS, or EBS).
+If you require client-side encryption, the AWS Encryption SDK is an open-source library that
+makes it easy to encrypt data within your application before sending it to the cloud.
+Secure communications
+To protect data in transit, AWS Certiﬁcate Manager (ACM) simpliﬁes the management of
+publicly trusted TLS certiﬁcates. Use it for asserting the identity of your internet-facing
+applications and facilitating encrypting communications between your application, users, and
+cloud services without worrying about certiﬁcate renewals. For internal applications, you can
+use AWS Private Certiﬁcate Authority (PCA) for generating and distributing x509 certiﬁcates for
+your internal resources, including both clients and servers.
+Secrets and credentials management
+For securely storing and retrieving application secrets such as database credentials, API keys,
+or certiﬁcates, consider AWS Secrets Manager. It provides automated secret rotation and ﬁnegrained access controls. Alternatively, AWS Systems Manager Parameter Store is a lower-cost
+option for managing non-sensitive conﬁgurations and can integrate with AWS Secrets Manager.
+Compliance and auditing
+For regulatory compliance work, consider AWS KMS and AWS CloudHSM to help ensure
+encryption standards are met. AWS Artifact is a self-service portal that provides on-demand
+access to AWS's security and compliance reports, such as ISO certiﬁcations and SOC reports, as
+well as the ability to review and accept agreements such as the Business Associate Addendum
+(BAA). You can also use services like AWS Conﬁg, AWS Security Hub CSPM, and AWS Audit
+Manager to monitor compliance and produce the appropriate artifacts for your own use or for
+consumption by your stakeholders.
+When choosing between AWS cryptography services, consider the following requirements.
+
+Understand
+
+3
+
+Choosing an AWS cryptography service
+
+AWS Decision Guide
+
+Requirement
+
+Service
+
+Low eﬀort, fully managed
+
+AWS KMS or AWS Secrets Manager
+
+Require speciﬁc application interfaces or
+cryptographic algorithms not supported by
+KMS
+
+AWS CloudHSM
+
+Encrypting/decrypting data in your applicati
+ons
+
+AWS Encryption SDK
+
+Simpliﬁed public TLS Certiﬁcate Management
+
+AWS Certiﬁcate Manager
+
+Secrets management
+
+AWS Secrets Manager
+
+By aligning your requirements with these options, you can implement cryptographic solutions
+tailored to your security and operational needs.
+
+Consider
+Choosing the right AWS cryptography service involves understanding your speciﬁc security,
+operational, and compliance needs. AWS oﬀers a variety of cryptographic services, each
+designed to address diﬀerent use cases, from key management to data encryption and secure
+communication. To make an informed decision, you should evaluate your requirements based
+on several critical criteria, including your use case, control and ﬂexibility needs, compliance
+obligations, cost considerations, and integration with AWS services. These criteria will help you
+align your choice with your organization’s security goals and operational workﬂows.
+Use case
+Consider what you need the cryptographic service for: data encryption, key management,
+secure communication, or secrets management. For example, AWS KMS is ideal for encryption
+integrated into AWS services, while AWS CloudHSM suits organizations who need certain
+cryptographic capabilities, application interfaces, or a single-tenant HSM, often due to stringent
+compliance or speciﬁc application needs. Clarifying the purpose ensures you select a service
+suitable for for your requirements, optimizing both functionality and cost.
+
+Consider
+
+4
+
+Choosing an AWS cryptography service
+
+AWS Decision Guide
+
+Control and ﬂexibility
+Evaluate the level of control you need over your cryptographic operations. Managed services
+like AWS KMS provide ease of use with minimal management overhead with a multi-tenant
+HSM while maintaining full control over your key material. In contrast, AWS CloudHSM oﬀers a
+single-tenant model for speciﬁc application, cryptographic, or compliance needs.
+Compliance requirements
+If you operate in a regulated industry, ensure the service aligns with standards like GDPR, PCI
+DSS, or HIPAA. AWS KMS and AWS CloudHSM are both FIPS 140-2 Level 3 certiﬁed. Selecting
+a service that meets your non-functional requirements helps maintain trust and may avoid
+potential legal or ﬁnancial penalties.
+Cost considerations
+Assess your budget against the service’s pricing model. AWS KMS is cost-eﬀective for general
+encryption needs, while AWS CloudHSM incurs higher costs due to dedicated hardware.
+Understanding cost implications helps you optimize your security expenditure.
+Integration with AWS ecosystem
+If you heavily use AWS services, prioritize a cryptography solution like AWS KMS or ACM that
+integrates seamlessly with S3, RDS, or Lambda. This ensures smoother workﬂows and reduces
+development eﬀort. Integration capabilities can signiﬁcantly enhance operational eﬃciency.
+
+Choose
+Choosing the right AWS cryptography service involves understanding your speciﬁc security,
+operational, and compliance needs. AWS oﬀers a variety of cryptographic services, each
+designed to address diﬀerent use cases, from key management to data encryption and secure
+communication. To make an informed decision, you should evaluate your requirements based
+on several critical criteria, including your use case, control and ﬂexibility needs, compliance
+obligations, cost considerations, and integration with AWS services. These criteria will help you
+align your choice with your organization’s security goals and operational workﬂows.
+Target use case
+
+When would you use it?
+
+Recommended service
+
+Key management
+
+To securely create, rotate, and
+manage cryptographic keys
+
+AWS KMS
+
+Choose
+
+5
+
+Choosing an AWS cryptography service
+
+Target use case
+
+AWS Decision Guide
+
+When would you use it?
+
+Recommended service
+
+integrated with other AWS
+services
+Key management
+
+For speciﬁc application
+integrations or cryptographic
+primitives
+
+AWS CloudHSM
+
+Data encryption
+
+To implement client-si
+de encryption to protect
+sensitive data such as
+customer details or intellect
+ual property.
+
+AWS Encryption SDK
+
+To protect data in transit and
+simplify the management of
+SSL/TLS certiﬁcates.
+
+AWS Certiﬁcate Manager
+
+To securely store and retrieve
+application secrets like
+database credentials, API
+keys, or certiﬁcates.
+
+AWS Secrets Manager
+
+Secure communications
+
+Secrets and credential
+management
+
+AWS Database Encryption
+SDK
+
+AWS Private CA
+
+AWS Parameter Store
+
+Use
+You should now have a clear understanding of what each AWS cryptography service does, and
+which ones might be right for you.
+To explore how to use and learn more about each of the available AWS cryptography services, we
+have provided a pathway to explore how each of them works. The following sections provide links
+to in-depth documentation, hands-on tutorials, and other resources to get you started.
+AWS Certiﬁcate Manager
+• Get started with AWS Certiﬁcate Manager
+Start using AWS Certiﬁcate Manager, including working with both public and private
+certiﬁcates.
+Use
+
+6
+
+Choosing an AWS cryptography service
+
+AWS Decision Guide
+
+Explore the guide
+• Best practices for AWS Certiﬁcate Manager
+Review recommendations that can help you use AWS Certiﬁcate Manager more eﬀectively.
+Explore the guide
+• AWS Certiﬁcate Manager FAQ
+Review the AWS Certiﬁcate Manager (ACM) FAQ page for detailed answers to common
+questions about ACM's features, capabilities, and usage. It covers topics such as the types of
+certiﬁcates ACM manages, integration with other AWS services, and guidance on provisioning
+and managing SSL/TLS certiﬁcates.
+Explore the FAQs
+AWS CloudHSM
+• Get started with AWS CloudHSM
+Learn how to create, initialize, and activate a cluster in AWS CloudHSM. After you complete
+these procedures, you'll be ready to manage users, manage clusters, and use the included
+software libraries to perform cryptographic operations.
+Explore the guide
+• Best practices for AWS CloudHSM
+Explore best practices for managing and monitoring your AWS CloudHSM cluster.
+Explore the guide
+• AWS CloudHSM pricing
+Review the pricing page to learn about AWS CloudHSM pricing. There are no upfront costs to
+use AWS CloudHSM. With AWS CloudHSM, you pay an hourly fee for each HSM you launch
+until you terminate the HSM. This guide provides the hourly rate for each AWS region.
+Explore the pricing page
+• AWS CloudHSM FAQ
+Use
+
+7
+
+Choosing an AWS cryptography service
+
+AWS Decision Guide
+
+Review the AWS CloudHSM FAQ page for detailed answers to common questions about AWS
+CloudHSM, including its features, pricing, provisioning, security, compliance, performance,
+and integration with third-party applications.
+Explore the FAQs
+AWS Encryption SDK
+• Get started with the AWS Encryption SDK
+Learn how to use the AWS Encryption SDK with AWS KMS.
+Explore the guide
+• Best practices for the AWS Encryption SDK
+Review the AWS Encryption SDK Best Practices page for guidance on eﬀectively utilizing the
+AWS Encryption SDK to secure your data. Adhering to these best practices helps ensure the
+conﬁdentiality and integrity of your encrypted data.
+Explore the guide
+• AWS Encryption SDK FAQ
+Review the AWS Encryption SDK FAQ page for answers to common questions about the AWS
+Encryption SDK, including its features, supported programming languages, and best practices
+for implementation.
+Explore the FAQ
+AWS Database Encryption SDK
+• Get started with the AWS Database Encryption SDK
+Learn how to use the AWS Database Encryption SDK with AWS KMS.
+Explore the guide
+• Conﬁgure the AWS Database Encryption SDK
+Learn how to conﬁgure the AWS Database Encryption SDK, including selecting a
+programming language and selecting wrapping keys.
+
+Use
+
+8
+
+Choosing an AWS cryptography service
+
+AWS Decision Guide
+
+Explore the guide
+AWS KMS
+• Get started with AWS KMS
+Learn how to create KMS keys, including symmetric and asymmetric encryption keys.
+Explore the guide
+• Best practices for AWS KMS
+Learn encryption best practices for AWS KMS.
+Explore the guide
+• AWS KMS pricing
+Review the AWS Key Management Service (KMS) Pricing page to learn about the costs
+associated with using AWS KMS, including charges for key storage, API requests, and optional
+features like custom key stores.
+Explore the pricing page
+• AWS KMS FAQ
+The AWS Key Management Service (KMS) FAQ page provides detailed answers to common
+questions about AWS KMS, including its features, security measures, billing practices, key
+management options, and integration with other AWS services.
+Explore the FAQs
+AWS Private CA
+• Best practices for AWS Private CA
+Review recommendations that can help you use AWS Private CA eﬀectively.
+Explore the guide
+• Get started with AWS Private CA
+Learn how to create and activate a root CA programmatically.
+Use
+
+9
+
+Choosing an AWS cryptography service
+
+AWS Decision Guide
+
+Explore the guide
+• AWS Private CA pricing
+Review costs associated with operating private CAs and issuing private certiﬁcates.
+Explore the pricing page
+• AWS Private CA FAQ
+Get detailed answers to common questions about AWS Private CA, including its features,
+pricing, provisioning, security, compliance, performance, and integration with other AWS
+services.
+Explore the FAQs
+AWS Secrets Manager
+• Get started with AWS Secrets Manager
+Learn how to create an AWS Secrets Manager secret.
+Explore the guide
+• Best practices for AWS Secrets Manager
+Learn about best practices you should consider when using AWS Secrets Manager.
+Explore the guide
+• AWS Secrets Manager pricing
+Review the AWS Secrets Manager pricing page to learn about costs associated with securely
+storing, managing, and retrieving secrets such as database credentials and API keys.
+Explore the pricing page
+• AWS Secrets Manager FAQ
+Review the AWS Secrets Manager FAQ page for detailed answers to common questions about
+AWS Secrets Manager, including its features, security measures, pricing, and integration
+capabilities.
+Explore the FAQs
+Use
+
+10
+
+Choosing an AWS cryptography service
+
+AWS Decision Guide
+
+Explore
+• Research and resources
+Explore AWS blogs, videos and tools on cryptography.
+Review resources
+• Videos
+Watch these videos from the AWS Developers channel on YouTube to further develop and reﬁne
+your cryptography strategy.
+Explore cryptography videos
+
+Explore
+
+11
+
+Choosing an AWS cryptography service
+
+AWS Decision Guide
+
+Document history
+The following table describes the important changes to this decision guide. For notiﬁcations about
+updates to this guide, you can subscribe to an RSS feed.
+Change
+
+Description
+
+Date
+
+Initial publication
+
+Guide ﬁrst published.
+
+January 31, 2025
+
+12
+
+
