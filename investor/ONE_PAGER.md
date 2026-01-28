@@ -15,7 +15,7 @@ We run the model inside an **AWS Nitro Enclave** (a hardware‑isolated environm
 - Faster enterprise security reviews via verifiable evidence
 
 ## Target customers
-Healthcare/finance/legal enterprises; AI SaaS vendors selling to enterprises; internal ML platform teams.
+**High-Assurance Regulated Industries**: Defense, Government, Financial Services, and Healthcare providers who cannot risk plaintext exposure of PII or model IP.
 
-## Near-term roadmap
-Secure inference MVP → enterprise readiness (tenant isolation, audit/evidence) → expansion (RAG pipelines, multi-TEE).
+## Technical Focus
+**High-Assurance Confidential Inference** optimized for CPU-based execution (MiniLM, BERT, and other transformer architectures) within AWS Nitro Enclaves.
