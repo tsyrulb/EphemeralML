@@ -256,12 +256,17 @@ main() {
 
   # Build docker tags from the same Dockerfile.
   # Important: We MUST set ENTRYPOINT explicitly. Mode is selected via build-arg -> ENV.
+  # IMPORTANT: Dockerfile copies paths from the monorepo (common/, enclaves/...).
+  # Therefore build context must be the repo root, not the enclave subdir.
+  DOCKER_CONTEXT="$REPO_ROOT"
+  DOCKERFILE_PATH="$REPO_ROOT/enclaves/vsock-pingpong/Dockerfile"
+
   log "docker_build_vsock (quiet)"
-  sudo docker build --build-arg MODE=vsock -t ephemeralml/vsock-pingpong:diag10-vsock "$REPO" >/tmp/docker_build_vsock.log 2>&1
+  sudo docker build -f "$DOCKERFILE_PATH" --build-arg MODE=vsock -t ephemeralml/vsock-pingpong:diag10-vsock "$DOCKER_CONTEXT" >/tmp/docker_build_vsock.log 2>&1
   log "docker_build_attestation (quiet)"
-  sudo docker build --build-arg MODE=attestation -t ephemeralml/vsock-pingpong:diag10-attestation "$REPO" >/tmp/docker_build_attestation.log 2>&1
+  sudo docker build -f "$DOCKERFILE_PATH" --build-arg MODE=attestation -t ephemeralml/vsock-pingpong:diag10-attestation "$DOCKER_CONTEXT" >/tmp/docker_build_attestation.log 2>&1
   log "docker_build_kms (quiet)"
-  sudo docker build --build-arg MODE=kms -t ephemeralml/vsock-pingpong:diag10-kms "$REPO" >/tmp/docker_build_kms.log 2>&1
+  sudo docker build -f "$DOCKERFILE_PATH" --build-arg MODE=kms -t ephemeralml/vsock-pingpong:diag10-kms "$DOCKER_CONTEXT" >/tmp/docker_build_kms.log 2>&1
 
   # Build EIFs
   log "build_eif_attestation (quiet)"
