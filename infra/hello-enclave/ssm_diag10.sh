@@ -305,7 +305,7 @@ main() {
 
   # Start KMS Host Proxy in background (with OTel)
   log "starting kms_proxy_host in background"
-  sudo nohup bash -c "source /root/.cargo/env && export OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4317 && export OTEL_SERVICE_NAME=ephemeralml-kms-proxy-host && $REPO_ROOT/host/target/release/kms_proxy_host" >"$OUT_BASE/kms_proxy_host.log" 2>&1 &
+  sudo nohup bash -c "source /root/.cargo/env && export OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4317 && export OTEL_SERVICE_NAME=ephemeralml-kms-proxy-host && $HOST_BIN" >"$OUT_BASE/kms_proxy_host.log" 2>&1 &
   sleep 2
 
   log "run_kms_test_attach_console_30s"
