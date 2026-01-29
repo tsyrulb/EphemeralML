@@ -252,6 +252,7 @@ This implementation plan breaks down the Confidential Inference Gateway into dis
 - [x] **20.2** Add performance measurement for warm vs cold sessions
 - [x] **20.3** Create performance monitoring and alerting (COMPLETED)
 - [x] **20.4** Write property tests for concurrent session performance (Verified on Nitro HW)
+- [x] **20.5** Document benchmarks and competitive analysis in `docs/benchmarks.md`
 
 ### 21. Production Deployment and Validation
 - [x] **21.1** Set up EC2 instances with Nitro Enclaves support
