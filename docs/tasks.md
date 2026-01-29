@@ -226,10 +226,10 @@ This implementation plan breaks down the Confidential Inference Gateway into dis
 ## Phase 7: Model Validation & Integration (End-to-End)
 
 ### 18. Model Format Validation
-- [ ] **18.1** Add validation for embedding models and small classifiers
-- [ ] **18.2** Enforce safetensors format and BF16 dtype constraints
-- [ ] **18.3** Reject unsupported models with clear error messages
-- [*] **18.4** Write property tests for model format validation
+- [x] **18.1** Add validation for embedding models and small classifiers
+- [x] **18.2** Enforce safetensors format and BF16 dtype constraints
+- [x] **18.3** Reject unsupported models with clear error messages
+- [x] **18.4** Write property tests for model format validation
 - _Requirements: 15.4, 15.5_
 
 ### 19. Integration and End-to-End Wiring
