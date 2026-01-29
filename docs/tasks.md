@@ -313,3 +313,35 @@ This implementation plan breaks down the Confidential Inference Gateway into dis
 **📋 Task Completion:** 104/104 required tasks done, 13 optional property test tasks available
 
 **Estimated Progress:** 100% v1 Gateway complete (Live Beta)
+
+---
+
+## Phase 9: Shield Mode (Layer 2) - Leakage-Resilient Inference [V2 ROADMAP]
+
+### 22. Shield Mode Core Infrastructure
+- [ ] **22.1** Implement masking factor generation engine (CSPRNG-based)
+- [ ] **22.2** Create structured obfuscation primitives (permutation + scaling)
+- [ ] **22.3** Add Shield Mode configuration and policy flags to `EnclaveConfig`
+- [ ] **22.4** Implement session-bound masking key derivation from HPKE secret
+- _Requirements: 7.1, 7.2, 7.3_
+
+### 23. Obfuscated Tensor Operations
+- [ ] **23.1** Integrate masking into Candle-based model loading (on-the-fly obfuscation)
+- [ ] **23.2** Implement de-masking logic for final output layer
+- [ ] **23.3** Add performance gating to limit overhead of masking operations
+- [ ] **23.4** Validate exact-match output tolerance (99% match target)
+- _Requirements: 7.4, 7.8, 7.10_
+
+### 24. Shield Mode Audit & Verification
+- [ ] **24.1** Update AER (Attested Execution Receipt) format to include Shield Mode status
+- [ ] **24.2** Add masking session ID to audit logs (sanitized)
+- [ ] **24.3** Update `verify_receipt` tool to support Shield Mode verification
+- _Requirements: 7.7, 7.9_
+
+### 25. Security Validation & Performance
+- [ ] **25.1** Create "memory scraping" test suite to validate weight obfuscation
+- [ ] **25.2** Perform comparative benchmarking (Gateway-only vs Shield Mode)
+- [ ] **25.3** Document leakage-resilience attacker model and limitations
+- _Requirements: 7.5, 7.6, 11.2_
+
+**Phase 9 Checkpoint:** ❌ Shield Mode functional and validated
