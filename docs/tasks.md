@@ -213,10 +213,10 @@ This implementation plan breaks down the Confidential Inference Gateway into dis
 - _Requirements: 9.1, 9.2, 9.3, 9.7, 9.8, 9.9, 9.5, 6.8_
 
 ### 17. Policy and Allowlist Management
-- [ ] **17.1** Create policy update system with signature verification
-- [ ] **17.2** Add measurement allowlist update without client redeployment
-- [ ] **17.3** Create policy version tracking and compatibility validation
-- [*] **17.4** Write property tests for policy update management
+- [x] **17.1** Create policy update system with signature verification
+- [x] **17.2** Add measurement allowlist update without client redeployment
+- [x] **17.3** Create policy version tracking and compatibility validation
+- [x] **17.4** Write property tests for policy update management
 - _Requirements: 14.2, 14.3, 14.4, 14.5_
 
 **Phase 6 Checkpoint:** Production hardening complete
