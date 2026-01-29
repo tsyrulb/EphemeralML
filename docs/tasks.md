@@ -316,6 +316,31 @@ This implementation plan breaks down the Confidential Inference Gateway into dis
 
 ---
 
+## Phase 8.5: Benchmark Suite (Real Measured Data)
+
+### 20. Benchmark Infrastructure
+- [ ] **20.1** Add `Mode::Benchmark` to `vsock-pingpong` enclave binary (attestation + KMS + model load + inference timing)
+- [ ] **20.2** Create `benchmark_baseline` host binary (bare-metal comparison, same JSON output format)
+- [ ] **20.3** Create `prepare_benchmark_model.sh` (download MiniLM-L6-v2, encrypt, upload to S3)
+- [ ] **20.4** Create `run_benchmark.sh` orchestration script (runs baseline + enclave, collects results)
+- [ ] **20.5** Create `benchmark_report.py` analysis script (computes overhead %, generates markdown tables)
+- [ ] **20.6** Create `ssm_benchmark.sh` SSM-based remote benchmark trigger
+- [ ] **20.7** Update `docs/benchmarks.md` with real measured data and reproducibility methodology
+- _Requirements: Credible performance claims, reproducible benchmarks_
+
+### 21. Benchmark Metrics (6 Must-Have)
+- [ ] **21.1** Inference latency: p50/p95/p99 per-inference timing (N=100 iterations)
+- [ ] **21.2** Model load time: S3 fetch + decrypt + deserialize, per stage
+- [ ] **21.3** Cold start: `nitro-cli run-enclave` to first inference response
+- [ ] **21.4** Attestation + KMS key release timing (NSM doc + KMS Decrypt w/ RecipientInfo)
+- [ ] **21.5** VSock overhead: RTT and throughput at various payload sizes vs localhost TCP
+- [ ] **21.6** Memory usage: Peak RSS during model load + inference vs bare metal
+- _Requirements: Competitive analysis against Azure Confidential AI, Fortanix, BlindAI_
+
+**Phase 8.5 Checkpoint:** ❌ Real benchmark data collected and documented
+
+---
+
 ## Phase 9: Shield Mode (Layer 2) - Leakage-Resilient Inference [V2 ROADMAP]
 
 ### 22. Shield Mode Core Infrastructure
